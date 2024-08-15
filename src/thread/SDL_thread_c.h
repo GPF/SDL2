@@ -46,6 +46,8 @@
 #include "os2/SDL_systhread_c.h"
 #elif defined(SDL_THREAD_NGAGE)
 #include "ngage/SDL_systhread_c.h"
+#elif defined(SDL_THREAD_DREAMCAST)
+#include "dreamcast/SDL_systhread_c.h"
 #else
 #error Need thread implementation for this platform
 #include "generic/SDL_systhread_c.h"
@@ -93,17 +95,17 @@ typedef struct
 /* This is how many TLS entries we allocate at once */
 #define TLS_ALLOC_CHUNKSIZE 4
 
-extern void SDL_InitTLSData(void);
-extern void SDL_QuitTLSData(void);
-
-/* Generic TLS support.
+/* Get cross-platform, slow, thread local storage for this thread.
    This is only intended as a fallback if getting real thread-local
    storage fails or isn't supported on this platform.
  */
-extern void SDL_Generic_InitTLSData(void);
 extern SDL_TLSData *SDL_Generic_GetTLSData(void);
+
+/* Set cross-platform, slow, thread local storage for this thread.
+   This is only intended as a fallback if getting real thread-local
+   storage fails or isn't supported on this platform.
+ */
 extern int SDL_Generic_SetTLSData(SDL_TLSData *data);
-extern void SDL_Generic_QuitTLSData(void);
 
 #endif /* SDL_thread_c_h_ */
 

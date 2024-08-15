@@ -104,6 +104,9 @@ static VideoBootStrap *bootstrap[] = {
 #ifdef SDL_VIDEO_DRIVER_PS2
     &PS2_bootstrap,
 #endif
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST
+    &DREAMCAST_bootstrap,
+#endif
 #ifdef SDL_VIDEO_DRIVER_PSP
     &PSP_bootstrap,
 #endif
@@ -3311,9 +3314,6 @@ void SDL_DestroyWindow(SDL_Window *window)
     /* Make sure this window no longer has focus */
     if (SDL_GetKeyboardFocus() == window) {
         SDL_SetKeyboardFocus(NULL);
-    }
-    if ((window->flags & SDL_WINDOW_MOUSE_CAPTURE)) {
-        SDL_UpdateMouseCapture(SDL_TRUE);
     }
     if (SDL_GetMouseFocus() == window) {
         SDL_SetMouseFocus(NULL);

@@ -18,18 +18,13 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
-{
-    return SDL_Generic_GetTLSData();
-}
+#ifndef SDL_dreamcastvideo_h_
+#define SDL_dreamcastvideo_h_
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+#include "../SDL_sysvideo.h"
+
+#endif /* SDL_dreamcastvideo_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

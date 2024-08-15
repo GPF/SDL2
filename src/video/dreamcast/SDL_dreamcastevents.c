@@ -18,18 +18,23 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST
+
+/* Being a null driver, there's no event stream. We just define stubs for
+   most of the API. */
+
+#include "../../events/SDL_events_c.h"
+
+#include "SDL_dreamcastvideo.h"
+#include "SDL_dreamcastevents_c.h"
+
+void DREAMCAST_PumpEvents(_THIS)
 {
-    return SDL_Generic_GetTLSData();
+    /* do nothing. */
 }
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+#endif /* SDL_VIDEO_DRIVER_DREAMCAST */
 
 /* vi: set ts=4 sw=4 expandtab: */

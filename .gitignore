@@ -67,6 +67,9 @@ CMakeLists.txt.user
 build*/
 *.pro.user*
 
+# for vscode
+.vscode
+
 # for Visual C++
 .vs
 Debug
@@ -187,3 +190,4 @@ debian/.debhelper/
 debian/files
 debian/libsdl*/
 debian/tmp/
+.gitignore

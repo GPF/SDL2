@@ -18,18 +18,28 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
+#if defined(SDL_FILESYSTEM_DREAMCAST)
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+/* System dependent filesystem routines                                */
+
+#include "SDL_error.h"
+#include "SDL_filesystem.h"
+
+char *SDL_GetBasePath(void)
 {
-    return SDL_Generic_GetTLSData();
+    char *base_path = SDL_strdup("/cd");
+    return base_path;
 }
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
+char *SDL_GetPrefPath(const char *org, const char *app)
 {
-    return SDL_Generic_SetTLSData(data);
+    SDL_Unsupported();
+    return NULL;
 }
+
+#endif /* SDL_FILESYSTEM_DREAMCAST  */
 
 /* vi: set ts=4 sw=4 expandtab: */

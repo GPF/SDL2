@@ -15,3 +15,16 @@ with README.md
 Enjoy!
 
 Sam Lantinga (slouken@libsdl.org)
+
+
+Very, very  limited SDL2 port to the dreamcast :)
+to build
+cd build-scripts
+./dreamcast.sh
+
+to build the dreamcast test binary
+cd test/dreamcast/test
+make -f Makefile.dc
+
+
+

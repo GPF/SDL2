@@ -19,17 +19,15 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+#ifndef SDL_dreamcastevents_c_h_
+#define SDL_dreamcastevents_c_h_
+
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
-{
-    return SDL_Generic_GetTLSData();
-}
+#include "SDL_dreamcastvideo.h"
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+extern void DREAMCAST_PumpEvents(_THIS);
+
+#endif /* SDL_dreamcastevents_c_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

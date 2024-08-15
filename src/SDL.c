@@ -29,6 +29,9 @@
 #endif
 #if defined(__OS2__)
 #include "core/os2/SDL_os2.h"
+#ifdef SDL_THREAD_OS2
+#include "thread/os2/SDL_systls_c.h"
+#endif
 #endif
 
 /* this checks for HAVE_DBUS_DBUS_H internally. */
@@ -49,7 +52,6 @@
 #include "haptic/SDL_haptic_c.h"
 #include "joystick/SDL_joystick_c.h"
 #include "sensor/SDL_sensor_c.h"
-#include "thread/SDL_thread_c.h"
 
 /* Initialization/Cleanup routines */
 #ifndef SDL_TIMERS_DISABLED
@@ -114,7 +116,6 @@ static SDL_bool SDL_MainIsReady = SDL_FALSE;
 #else
 static SDL_bool SDL_MainIsReady = SDL_TRUE;
 #endif
-static SDL_bool SDL_main_thread_initialized = SDL_FALSE;
 static SDL_bool SDL_bInMainQuit = SDL_FALSE;
 static Uint8 SDL_SubsystemRefCount[32];
 
@@ -180,34 +181,26 @@ void SDL_SetMainReady(void)
     SDL_MainIsReady = SDL_TRUE;
 }
 
+/* Initialize all the subsystems that require initialization before threads start */
 void SDL_InitMainThread(void)
 {
-    if (SDL_main_thread_initialized) {
-        return;
-    }
-
     SDL_InitTLSData();
-#ifndef SDL_TIMERS_DISABLED
-    SDL_TicksInit();
-#endif
-    SDL_LogInit();
-
-    SDL_main_thread_initialized = SDL_TRUE;
+    SDL_InitTicks();
+    SDL_InitFilesystem();
+    SDL_InitLog();
+    SDL_InitProperties();
+    SDL_GetGlobalProperties();
+    SDL_InitHints();
 }
 
 static void SDL_QuitMainThread(void)
 {
-    if (!SDL_main_thread_initialized) {
-        return;
-    }
-
-    SDL_LogQuit();
-#ifndef SDL_TIMERS_DISABLED
-    SDL_TicksQuit();
-#endif
+    SDL_QuitHints();
+    SDL_QuitProperties();
+    SDL_QuitLog();
+    SDL_QuitFilesystem();
+    SDL_QuitTicks();
     SDL_QuitTLSData();
-
-    SDL_main_thread_initialized = SDL_FALSE;
 }
 
 int SDL_InitSubSystem(Uint32 flags)
@@ -218,11 +211,17 @@ int SDL_InitSubSystem(Uint32 flags)
         return SDL_SetError("Application didn't initialize properly, did you include SDL_main.h in the file containing your main() function?");
     }
 
+    SDL_LogInit();
+
     /* Clear the error message */
     SDL_ClearError();
 
 #ifdef SDL_USE_LIBDBUS
     SDL_DBus_Init();
+#endif
+
+#ifdef SDL_THREAD_OS2
+    SDL_OS2TLSAlloc(); /* thread/os2/SDL_systls.c */
 #endif
 
 #ifdef SDL_VIDEO_DRIVER_WINDOWS
@@ -231,6 +230,10 @@ int SDL_InitSubSystem(Uint32 flags)
             goto quit_and_error;
         }
     }
+#endif
+
+#ifndef SDL_TIMERS_DISABLED
+    SDL_TicksInit();
 #endif
 
     /* Initialize the event subsystem */
@@ -397,6 +400,9 @@ int SDL_Init(Uint32 flags)
 void SDL_QuitSubSystem(Uint32 flags)
 {
 #if defined(__OS2__)
+#ifdef SDL_THREAD_OS2
+    SDL_OS2TLSFree(); /* thread/os2/SDL_systls.c */
+#endif
     SDL_OS2Quit();
 #endif
 
@@ -520,6 +526,10 @@ void SDL_Quit(void)
 #endif
     SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
 
+#ifndef SDL_TIMERS_DISABLED
+    SDL_TicksQuit();
+#endif
+
 #ifdef SDL_USE_LIBDBUS
     SDL_DBus_Quit();
 #endif
@@ -527,12 +537,14 @@ void SDL_Quit(void)
     SDL_ClearHints();
     SDL_AssertionsQuit();
 
+    SDL_LogQuit();
+
     /* Now that every subsystem has been quit, we reset the subsystem refcount
      * and the list of initialized subsystems.
      */
     SDL_memset(SDL_SubsystemRefCount, 0x0, sizeof(SDL_SubsystemRefCount));
 
-    SDL_QuitMainThread();
+    SDL_TLSCleanup();
 
     SDL_bInMainQuit = SDL_FALSE;
 }
@@ -640,6 +652,8 @@ const char *SDL_GetPlatform(void)
     return "PlayStation Vita";
 #elif defined(__NGAGE__)
     return "Nokia N-Gage";
+#elif defined(__DREAMCAST__)
+    return "Sega Dreamcast";
 #elif defined(__3DS__)
     return "Nintendo 3DS";
 #else

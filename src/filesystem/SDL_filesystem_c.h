@@ -19,17 +19,11 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
+#ifndef SDL_filesystem_c_h_
+#define SDL_filesystem_c_h_
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
-{
-    return SDL_Generic_GetTLSData();
-}
+extern void SDL_InitFilesystem(void);
+extern void SDL_QuitFilesystem(void);
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+#endif
 
-/* vi: set ts=4 sw=4 expandtab: */

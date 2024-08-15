@@ -19,17 +19,15 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+#ifndef SDL_dreamcastframebuffer_c_h_
+#define SDL_dreamcastframebuffer_c_h_
+
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
-{
-    return SDL_Generic_GetTLSData();
-}
+extern int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *format, void **pixels, int *pitch);
+extern int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects);
+extern void SDL_DREAMCAST_DestroyWindowFramebuffer(_THIS, SDL_Window *window);
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+#endif /* SDL_dreamcastframebuffer_c_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

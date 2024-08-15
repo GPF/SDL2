@@ -18,18 +18,24 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
-SDL_TLSData *SDL_SYS_GetTLSData(void)
+#ifndef SDL_dummyaudio_h_
+#define SDL_dummyaudio_h_
+
+#include "../SDL_sysaudio.h"
+
+/* Hidden "this" pointer for the audio functions */
+#define _THIS SDL_AudioDevice *_this
+
+struct SDL_PrivateAudioData
 {
-    return SDL_Generic_GetTLSData();
-}
+    /* The file descriptor for the audio device */
+    Uint8 *mixbuf;
+    Uint32 mixlen;
+    Uint32 write_delay;
+    Uint32 initial_calls;
+};
 
-int SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
-
+#endif /* SDL_dummyaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */

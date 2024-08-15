@@ -65,6 +65,8 @@
 #define SDL_DYNAMIC_API 0 /* vitasdk doesn't support dynamic linking */
 #elif defined(__NGAGE__)
 #define SDL_DYNAMIC_API 0 /* The N-Gage doesn't support dynamic linking either */
+#elif defined(__DREAMCAST__)
+#define SDL_DYNAMIC_API 0 /* The Dreamcast doesn't support dynamic linking either */
 #elif defined(__3DS__)
 #define SDL_DYNAMIC_API 0 /* devkitARM doesn't support dynamic linking */
 #elif defined(DYNAPI_NEEDS_DLOPEN) && !defined(HAVE_DLOPEN)

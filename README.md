@@ -26,5 +26,6 @@ to build the dreamcast test binary
 cd test/dreamcast/test
 make -f Makefile.dc
 
+![Screenshot 2024-08-14 162634](https://github.com/user-attachments/assets/5cde0e6b-1c8d-4604-b979-0a3482cde9c3)
 
 

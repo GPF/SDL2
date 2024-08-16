@@ -1,4 +1,4 @@
-TARGET = SDL2dcvidTest
+TARGET = SDL2dcAnimationTest
  
 # Update include paths for SDL2
 KOS_CFLAGS+= -I../../../build-scripts/build/include -I../../../build-scripts/build/include-config-/SDL2 -I../../../build-scripts/build/include/SDL2 -I. -DDREAMCAST
@@ -15,7 +15,7 @@ all: $(TARGET).bin
 
 include $(KOS_BASE)/Makefile.rules
 
-OBJS =	viewbmp.o #romdisk.o
+OBJS =	sdlanim.o #romdisk.o
 
 clean:
 	rm -f $(OBJS) $(TARGET).elf $(TARGET).bin romdisk.o romdisk.img

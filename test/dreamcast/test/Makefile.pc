@@ -1,17 +1,17 @@
-TARGET = main
+TARGET = viewbmp
 
 CC = gcc
 CFLAGS = -Wall -g -I/usr/include/SDL2
 LIBS = -L/usr/lib/local -lSDL2main -lSDL2
 
-all:  main.o
-	$(CC) $(CFLAGS) -o $(TARGET) main.o $(LIBS)
+all:  viewbmp.o
+	$(CC) $(CFLAGS) -o $(TARGET) viewbmp.o $(LIBS)
 
-main.o: main.c
-	$(CC) $(CFLAGS) -c main.c
+viewbmp.o: viewbmp.c
+	$(CC) $(CFLAGS) -c viewbmp.c
 
 clean:
-	rm -f $(TARGET) main.o
+	rm -f $(TARGET) viewbmp.o
 
 run: $(TARGET)
 	./$(TARGET)

@@ -1,12 +1,30 @@
 #ifdef DREAMCAST
 #include <kos.h>
-// Path to the BMP file on the Dreamcast's CD disk
 #define BMP_PATH "/cd/data/NeHe.bmp"
 #else
 #define BMP_PATH "cd/data/NeHe.bmp"
 #endif
 #include <SDL2/SDL.h>
 
+static void handle_joystick_events(SDL_Joystick *joystick) {
+    if (!joystick) return;
+
+    int num_buttons = SDL_JoystickNumButtons(joystick);
+    int num_axes = SDL_JoystickNumAxes(joystick);
+
+    for (int i = 0; i < num_buttons; i++) {
+        if (SDL_JoystickGetButton(joystick, i)) {
+            printf("Button %d pressed\n", i);
+        }
+    }
+
+    for (int i = 0; i < num_axes; i++) {
+        int axis_value = SDL_JoystickGetAxis(joystick, i);
+        if (axis_value != 0) {
+            printf("Axis %d value: %d\n", i, axis_value);
+        }
+    }
+}
 
 int main(int argc, char *argv[]) {
     SDL_Window *window;
@@ -18,7 +36,7 @@ int main(int argc, char *argv[]) {
 
     printf("SDL2_INIT_VIDEO\n");
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         printf("SDL2 could not initialize! SDL_Error: %s\n", SDL_GetError());
         return 1;
     }
@@ -35,7 +53,6 @@ int main(int argc, char *argv[]) {
     printf("SDL_CreateRenderer\n"); 
     // Create a renderer
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) { 
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -77,6 +94,15 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     printf("SDL_CreateTextureFromSurface\n"); 
+
+    // Open the first joystick
+    SDL_Joystick *joystick = SDL_JoystickOpen(0);
+    if (!joystick) {
+        printf("Warning: No joystick connected!\n");
+    } else {
+        printf("Opened joystick: %s\n", SDL_JoystickName(joystick));
+    }
+
     // Main loop
     printf("running\n");
     while (running) { 
@@ -86,6 +112,11 @@ int main(int argc, char *argv[]) {
             } 
         }
 
+        // Poll joystick state
+        if (joystick) {
+            handle_joystick_events(joystick);
+        }
+
         // Clear the screen 
         SDL_RenderClear(renderer);
         // Copy the texture to the renderer
@@ -93,12 +124,13 @@ int main(int argc, char *argv[]) {
         // Present the renderer
         SDL_RenderPresent(renderer);
 
-        SDL_UpdateWindowSurface(window);
-        // Sleep for a short while to prevent excessive CPU usage
         SDL_Delay(16);  // approximately 60 FPS
     }
 
     // Clean up
+    if (joystick) {
+        SDL_JoystickClose(joystick);
+    }
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_RWclose(rw);

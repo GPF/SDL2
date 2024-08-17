@@ -26,7 +26,7 @@ to build the dreamcast test binary
 cd test/dreamcast/test
 make -f Makefile.dc
 
-![Screenshot 2024-08-14 162634](https://github.com/user-attachments/assets/5cde0e6b-1c8d-4604-b979-0a3482cde9c3)
+![Screenshot 2024-08-14 162634](https://github.com/user-attachments/assets/bb984048-3754-403b-9a9a-4adf6f32b0a9)
 
 added joystick support and a sdl2 sprite sheet animation dreamcast test.
 
@@ -36,4 +36,5 @@ https://github.com/user-attachments/assets/b92223ca-1fb6-4827-a6c6-622c84ae65ac
 ported the nehe06 SDL tutorial example to SDL2 opengl(GLdc), to test the opengl driver.
 
 https://github.com/user-attachments/assets/54ae20e1-4dd2-4fd0-bb2b-8bf3fa0b2bff
+![Screenshot 2024-08-16 220329](https://github.com/user-attachments/assets/31753f7b-ce28-4c31-be64-3e9a59ebc1d6)
 

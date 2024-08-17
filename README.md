@@ -28,6 +28,10 @@ make -f Makefile.dc
 
 ![Screenshot 2024-08-14 162634](https://github.com/user-attachments/assets/5cde0e6b-1c8d-4604-b979-0a3482cde9c3)
 
+added joystick support and a sdl2 sprite sheet animation dreamcast test.
+
+https://github.com/user-attachments/assets/b92223ca-1fb6-4827-a6c6-622c84ae65ac
+
 
 ported the nehe06 SDL tutorial example to SDL2 opengl(GLdc), to test the opengl driver.
 

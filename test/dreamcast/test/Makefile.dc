@@ -15,14 +15,14 @@ all: $(TARGET).bin
 
 include $(KOS_BASE)/Makefile.rules
 
-OBJS =	viewbmp.o #romdisk.o
+OBJS =	viewbmpGL.o #romdisk.o
 
 clean:
 	rm -f $(OBJS) $(TARGET).elf $(TARGET).bin romdisk.o romdisk.img
 
 $(TARGET).elf: $(OBJS)
 	$(KOS_CC) $(KOS_CFLAGS) $(KOS_LDFLAGS) -o $(TARGET).elf $(KOS_START) \
-	$(OBJS) $(OBJEXTRA) -lSDL2 -lSDL2main -lm -lkosutils $(KOS_LIBS)
+	$(OBJS) $(OBJEXTRA) -lSDL2 -lSDL2main -lGL -lm -lkosutils $(KOS_LIBS)
 
 $(TARGET).bin: $(TARGET).elf
 	$(KOS_OBJCOPY) -R .stack -O binary $(TARGET).elf $(TARGET).bin

@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
+#include <kos.h>
 
 /* Size of the window */
 #define SCREEN_WIDTH  640
@@ -20,7 +21,7 @@
 /* Number of pixels for one step of the sprite */
 #define SPRITE_STEP     5
 
-void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *position) {
+void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *position, int *gameover) {
     // Check the D-pad hat position
     Sint16 hat = SDL_JoystickGetHat(joystick, 0); // Assuming using the first hat
 
@@ -37,10 +38,16 @@ void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *p
         *currDirection = DIR_RIGHT;
         position->x += SPRITE_STEP;
     }
+
+    // Check for button press
+    if (SDL_JoystickGetButton(joystick, 0)) {
+        *gameover = 1;
+    }
 }
 
 int main(int argc, char* argv[])
 {
+KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *spriteTexture;
@@ -147,11 +154,28 @@ int main(int argc, char* argv[])
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 gameover = 1;
+            } else if (event.type == SDL_KEYDOWN) {
+                // Handle keyboard events, e.g., check for escape key to quit
+        if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    gameover = 1;
+                }
+            } else if (event.type == SDL_JOYBUTTONDOWN) {
+                // Handle joystick button press events
+        if (event.jbutton.button == 1 && event.jbutton.which == 0) {
+                    // Button 1 on joystick 0 was pressed, exit the program immediately
+                    SDL_Quit();
+                    exit(0);
+                }
+                if (event.jbutton.button == 0 && event.jbutton.which == 0) {
+                    // Button 0 on joystick 0 was pressed, set gameover
+                    gameover = 1;
+                }
             }
         }
 
+
         /* handle joystick input */
-        HandleJoystickInput(joystick, &currentDirection, &spritePosition);
+        HandleJoystickInput(joystick, &currentDirection, &spritePosition, &gameover);
 
         /* collide with edges of screen */
         if (spritePosition.x <= 0)

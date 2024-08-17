@@ -42,6 +42,17 @@ typedef struct joystick_hwdata {
     cont_state_t prev_state;
 } jhwdata_t;
 
+static const int sdl_buttons[] = {
+    CONT_C,
+    CONT_B,
+    CONT_A,
+    CONT_START,
+    CONT_Z,
+    CONT_Y,
+    CONT_X,
+    CONT_D
+};
+
 static int DREAMCAST_JoystickInit(void) {
     int numdevs = 0, i;
     maple_device_t *dev;
@@ -226,8 +237,8 @@ static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick)
     }
 
     for (i = 0; i < MAX_BUTTONS; ++i) {
-        if (changed & (1 << i)) {
-            SDL_PrivateJoystickButton(joystick, i, (buttons & (1 << i)) ? SDL_PRESSED : SDL_RELEASED);
+        if (changed & sdl_buttons[i]) {
+            SDL_PrivateJoystickButton(joystick, i, (buttons & sdl_buttons[i]) ? SDL_PRESSED : SDL_RELEASED);
         }
     }
 

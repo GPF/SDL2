@@ -2699,6 +2699,14 @@ elseif(DREAMCAST)
     file(GLOB DREAMCAST_VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/dreamcast/*.c)
     list(APPEND SOURCE_FILES ${DREAMCAST_VIDEO_SOURCES})
     set(HAVE_SDL_VIDEO TRUE)
+
+    if(SDL_OPENGL)
+    set(SDL_VIDEO_OPENGL 1)
+    set(SDL_VIDEO_RENDER_OGL 1)
+    list(APPEND EXTRA_LIBS GL)
+    set(HAVE_OPENGL TRUE)
+endif()
+
   endif()
 
   if(SDL_LOCALE)

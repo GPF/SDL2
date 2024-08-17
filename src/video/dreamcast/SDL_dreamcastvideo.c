@@ -47,10 +47,12 @@
 #include "SDL_dreamcastevents_c.h"
 #include "SDL_dreamcastframebuffer_c.h"
 #include "SDL_hints.h"
-#include <kos.h> //For 60Hz mode
+#include <kos.h>
 #include <dc/video.h>
 #define DREAMCASTVID_DRIVER_NAME       "dcvideo"
 #define DREAMCASTVID_DRIVER_EVDEV_NAME "dcevdev"
+
+#include "SDL_dreamcastopengl.h"
 
 /* Initialization/Query functions */
 static int DREAMCAST_VideoInit(_THIS);
@@ -114,6 +116,15 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
     device->CreateWindowFramebuffer = SDL_DREAMCAST_CreateWindowFramebuffer;
     device->UpdateWindowFramebuffer = SDL_DREAMCAST_UpdateWindowFramebuffer;
     device->DestroyWindowFramebuffer = SDL_DREAMCAST_DestroyWindowFramebuffer;
+
+#ifdef SDL_VIDEO_OPENGL
+    device->GL_LoadLibrary = DREAMCAST_GL_LoadLibrary;
+    device->GL_GetProcAddress = DREAMCAST_GL_GetProcAddress;
+    device->GL_MakeCurrent = DREAMCAST_GL_MakeCurrent;
+    device->GL_SwapWindow = DREAMCAST_GL_SwapBuffers;
+    device->GL_CreateContext = DREAMCAST_GL_CreateContext;
+    device->GL_DeleteContext = DREAMCAST_GL_DeleteContext;
+#endif
 
     device->free = DREAMCAST_DeleteDevice;
 

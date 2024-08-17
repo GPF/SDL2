@@ -106,7 +106,7 @@ void DREAMCAST_GL_SwapBuffers(_THIS) {
 }
 
 int DREAMCAST_GL_Initialize(_THIS) {
-    printf("Initializing GLdc...\n");
+    printf("Initializing SDL2 GLdc...\n");
     glKosInit();
     if (DREAMCAST_GL_LoadLibrary(_this, NULL) < 0) {
         return -1;
@@ -119,15 +119,21 @@ void DREAMCAST_GL_Shutdown(_THIS) {
     glKosShutdown();
 }
 
-SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
-    printf("Creating Dreamcast OpenGL context...\n");
-    DreamcastGLContext *context = (DreamcastGLContext *) SDL_calloc(1, sizeof(DreamcastGLContext));
+SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window)
+{
+    DreamcastGLContext *context;
+
+    printf("Creating Dreamcast SDL2 OpenGL context...\n");
+
+    context = (DreamcastGLContext *) SDL_calloc(1, sizeof(DreamcastGLContext));
     if (!context) {
         SDL_OutOfMemory();
         return NULL;
     }
+
     return (SDL_GLContext) context;
 }
+
 
 int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;

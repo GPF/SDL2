@@ -17,6 +17,16 @@ GLuint LoadBMPTexture(const char *filename) {
 
     printf("Loaded BMP file successfully.\n");
 
+    // Convert BGR to RGB
+    if (surface->format->BytesPerPixel == 3) {
+        unsigned char *pixels = (unsigned char *)surface->pixels;
+        for (int i = 0; i < surface->w * surface->h; ++i) {
+            unsigned char temp = pixels[i * 3];
+            pixels[i * 3] = pixels[i * 3 + 2];
+            pixels[i * 3 + 2] = temp;
+        }
+    }
+
     glGenTextures(1, &textureID);
     printf("Generated texture ID: %u\n", textureID);
 
@@ -27,28 +37,8 @@ GLuint LoadBMPTexture(const char *filename) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     printf("Set texture parameters.\n");
 
-    GLenum format;
-    GLenum internalFormat;
-    
-    // Handle pixel format properly for RGB888
-    switch (surface->format->BytesPerPixel) {
-        case 1: // Grayscale
-            format = GL_LUMINANCE;
-            internalFormat = GL_LUMINANCE;
-            break;
-        case 3: // RGB888
-            format = GL_RGB;
-            internalFormat = GL_RGB;
-            break;
-        case 4: // RGBA8888
-            format = GL_RGBA;
-            internalFormat = GL_RGBA;
-            break;
-        default:
-            format = GL_RGB;
-            internalFormat = GL_RGB;
-            break;
-    }
+    GLenum format = GL_RGB;
+    GLenum internalFormat = GL_RGB;
 
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, surface->w, surface->h, 0, format, GL_UNSIGNED_BYTE, surface->pixels);
     printf("Created texture image. (Width: %d, Height: %d, Format: %d)\n", surface->w, surface->h, internalFormat);

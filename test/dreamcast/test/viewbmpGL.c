@@ -54,8 +54,7 @@ int main(int argc, char *argv[]) {
     SDL_Event event;
     int running = 1;
 
-    // Initialize KOS and GLdc
-    glKosInit();
+
 
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {

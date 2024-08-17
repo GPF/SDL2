@@ -119,9 +119,14 @@ void DREAMCAST_GL_Shutdown(_THIS) {
     glKosShutdown();
 }
 
-SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window)
-{
+SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
     DreamcastGLContext *context;
+
+    // Initialize the OpenGL driver if it hasn't been initialized
+    if (DREAMCAST_GL_Initialize(_this) < 0) {
+        SDL_SetError("Failed to initialize OpenGL");
+        return NULL;
+    }
 
     printf("Creating Dreamcast SDL2 OpenGL context...\n");
 
@@ -133,7 +138,6 @@ SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window)
 
     return (SDL_GLContext) context;
 }
-
 
 int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
@@ -151,7 +155,7 @@ void DREAMCAST_GL_DeleteContext(_THIS, SDL_GLContext context) {
     }
 }
 
-void SDL_DREAMCAST_InitGL(_THIS) {
+void SDL_DREAMCAST_InitGL(_THIS) { 
     if (DREAMCAST_GL_Initialize(_this) < 0) {
         SDL_SetError("Failed to initialize OpenGL");
     }

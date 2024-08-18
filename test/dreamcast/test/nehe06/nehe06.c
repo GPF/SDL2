@@ -17,8 +17,9 @@
 Uint32 waittime = 1000.0f/FPS;
 Uint32 framestarttime = 0;
 Sint32 delaytime;
-#define BMP_PATH "/cd/data/NeHe.bmp"
-
+#define BMP_PATH "/rd/NeHe.bmp"
+extern uint8 romdisk[];
+KOS_INIT_ROMDISK(romdisk);
 /* floats for x rotation, y rotation, z rotation */
 float xrot, yrot, zrot;
 

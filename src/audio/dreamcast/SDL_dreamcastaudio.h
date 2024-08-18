@@ -20,22 +20,26 @@
 */
 #include "../../SDL_internal.h"
 
-#ifndef SDL_dummyaudio_h_
-#define SDL_dummyaudio_h_
+#ifndef SDL_dreamcastaudio_h_
+#define SDL_dreamcastaudio_h_
 
 #include "../SDL_sysaudio.h"
+#include <stdint.h>  // For uint32_t
 
 /* Hidden "this" pointer for the audio functions */
 #define _THIS SDL_AudioDevice *_this
 
-struct SDL_PrivateAudioData
-{
-    /* The file descriptor for the audio device */
-    Uint8 *mixbuf;
-    Uint32 mixlen;
-    Uint32 write_delay;
-    Uint32 initial_calls;
-};
+typedef struct {
+    uint32_t *leftpos;   // Use uint32_t if it's not defined elsewhere
+    uint32_t *rightpos;  // Use uint32_t if it's not defined elsewhere
+    void *mixbuf;
+    unsigned int size;
+    unsigned int mixlen;
+    int nextbuf;
+    int playing;
+    SDL_AudioSpec *spec; // Add this member to access audio specifications
+} SDL_PrivateAudioData;
 
-#endif /* SDL_dummyaudio_h_ */
+#endif /* SDL_dreamcastaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */
+

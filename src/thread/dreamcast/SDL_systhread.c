@@ -85,3 +85,6 @@ void SDL_SYS_KillThread(SDL_Thread *thread)
     thd_destroy(thread->handle);
 }
 
+int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority) {
+    return 0;
+}

@@ -114,6 +114,9 @@ static const AudioBootStrap *const bootstrap[] = {
 #ifdef SDL_AUDIO_DRIVER_N3DS
     &N3DSAUDIO_bootstrap,
 #endif
+#ifdef SDL_AUDIO_DRIVER_DREAMCAST
+    &DREAMCASTAUD_bootstrap,
+#endif
 #ifdef SDL_AUDIO_DRIVER_EMSCRIPTEN
     &EMSCRIPTENAUDIO_bootstrap,
 #endif

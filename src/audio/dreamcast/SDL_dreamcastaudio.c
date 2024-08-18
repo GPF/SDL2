@@ -22,47 +22,330 @@
 
 #ifdef SDL_AUDIO_DRIVER_DREAMCAST
 
-/* Output audio to nowhere... */
-
-#include "SDL_timer.h"
 #include "SDL_audio.h"
 #include "../SDL_audio_c.h"
 #include "SDL_dreamcastaudio.h"
+#include "aica.h"
+#include <dc/spu.h>
+#include <kos/thread.h>
 
-static int DREAMCASTAUDIO_OpenDevice(_THIS, const char *devname)
+static SDL_AudioDevice *audioDevice = NULL;   // Pointer to the active audio output device
+static SDL_AudioDevice *captureDevice = NULL; // Pointer to the active audio capture device
+
+// typedef struct {
+//     Uint8 *mixbuf;
+//     int nextbuf;
+//     SDL_AudioSpec spec;
+//     int playing;
+// } SDL_PrivateAudioData;
+
+#include "../../SDL_internal.h"
+#include "../SDL_sysaudio.h"
+#include <stdint.h>
+
+static int DREAMCASTAUD_OpenDevice(_THIS)
 {
-    _this->hidden = (void *)0x1; /* just something non-NULL */
+    SDL_PrivateAudioData *hidden;
+    SDL_AudioFormat test_format;
+    SDL_bool iscapture = SDL_FALSE;
 
-    return 0; /* always succeeds. */
+    SDL_assert((audioDevice == NULL) || iscapture);
+
+    if (iscapture) {
+        captureDevice = _this;
+    } else {
+        audioDevice = _this;
+    }
+
+    hidden = (SDL_PrivateAudioData *)SDL_malloc(sizeof(*hidden));
+    if (!hidden) {
+        return SDL_OutOfMemory();
+    }
+    SDL_zerop(hidden);
+    _this->hidden = hidden;
+
+    // Find a compatible format
+    for (test_format = SDL_FirstAudioFormat(_this->spec.format); test_format; test_format = SDL_NextAudioFormat()) {
+        if ((test_format == AUDIO_S8) ||
+            (test_format == AUDIO_S16LSB)) {
+            _this->spec.format = test_format;
+            break;
+        }
+    }
+
+    if (!test_format) {
+        /* Didn't find a compatible format :( */
+        printf("Dreamcast unsupported audio format: 0x%x", _this->spec.format);
+        return 0;
+    }
+
+    SDL_CalculateAudioSpec(&_this->spec);
+
+    // Allocate and initialize mixing buffer
+    hidden->mixlen = _this->spec.size;
+    hidden->mixbuf = (Uint8 *)SDL_malloc(hidden->mixlen);
+    if (!hidden->mixbuf) {
+        SDL_free(hidden);
+        return SDL_OutOfMemory();
+    }
+    SDL_memset(hidden->mixbuf, _this->spec.silence, _this->spec.size);
+    hidden->leftpos = (uint32_t *)0x11000;  // Adjust type if needed
+    hidden->rightpos = (uint32_t *)(0x11000 + _this->spec.size);  // Adjust type if needed
+    hidden->playing = 0;
+    hidden->nextbuf = 0;
+
+    // Initialize the sound device
+    irq_enable();
+
+    SDL_LogCritical(SDL_LOG_CATEGORY_AUDIO,
+                    "Dreamcast audio driver initialized\n");
+
+    return 0;
 }
 
-static int DREAMCASTAUDIO_CaptureFromDevice(_THIS, void *buffer, int buflen)
-{
-    /* Delay to make this sort of simulate real audio input. */
-    SDL_Delay((_this->spec.samples * 1000) / _this->spec.freq);
 
-    /* always return a full buffer of silence. */
-    SDL_memset(buffer, _this->spec.silence, buflen);
-    return buflen;
+static void DREAMCASTAUD_PlayDevice(_THIS)
+{
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+    SDL_AudioSpec *spec = &_this->spec;
+    unsigned int offset;
+
+    /* Wait until it's possible to write */
+	if (hidden->playing) {
+		/* wait */
+		while(SDL_DC_aica_get_pos(0)/spec->samples == hidden->nextbuf) {
+			thd_pass();
+		}
+	}
+    
+    offset = hidden->nextbuf * spec->size;
+    hidden->nextbuf ^= 1;
+
+    /* Load the audio buffer */
+    if (spec->channels == 1) {
+        SDL_DC_spu_memload_mono((uint32 *)(hidden->leftpos + offset), (uint32 *)hidden->mixbuf, spec->size);
+    } else {
+        offset >>= 1;
+        if (spec->format == AUDIO_S8) {
+            SDL_DC_spu_memload_stereo8((uint32 *)(hidden->leftpos + offset), (uint32 *)(hidden->rightpos + offset), (uint32 *)hidden->mixbuf, spec->size);
+        } else {
+            SDL_DC_spu_memload_stereo16((uint32 *)(hidden->leftpos + offset), (uint32 *)(hidden->rightpos + offset), (uint32 *)hidden->mixbuf, spec->size);
+        }
+    }
+
+    /* Start playback if not already playing */
+    if (!hidden->playing) {
+        int mode = (spec->format == AUDIO_S8) ? SDL_DC_SM_8BIT : SDL_DC_SM_16BIT;
+        hidden->playing = 1;
+
+        if (spec->channels == 1) {
+            SDL_DC_aica_play(0, mode, (unsigned long)hidden->leftpos, 0, spec->samples << 1, spec->freq, 255, 128, 1);
+        } else {
+            SDL_DC_aica_play(0, mode, (unsigned long)hidden->leftpos, 0, spec->samples << 1, spec->freq, 255, 0, 1);
+            SDL_DC_aica_play(1, mode, (unsigned long)hidden->rightpos, 0, spec->samples << 1, spec->freq, 255, 255, 1);
+        }
+    }
 }
 
-static SDL_bool DREAMCASTAUDIO_Init(SDL_AudioDriverImpl *impl)
+
+static Uint8* DREAMCASTAUD_GetDeviceBuf(_THIS)
+{
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+    return hidden->mixbuf;
+}
+
+static int DREAMCASTAUD_CaptureFromDevice(_THIS, void *buffer, int buflen)
+{
+    /* Implement capture functionality if needed */
+    return 0;  /* Example return value */
+}
+
+static void DREAMCASTAUD_FlushCapture(_THIS)
+{
+    /* Implement capture flush functionality if needed */
+}
+
+static void DREAMCASTAUD_CloseDevice(_THIS)
+{
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+
+    /* Clean up and close the device */
+    spu_shutdown();
+
+    if (hidden) {
+        if (hidden->mixbuf) {
+            SDL_free(hidden->mixbuf);
+        }
+        SDL_free(hidden);
+        _this->hidden = NULL;
+    }
+
+    if (_this->iscapture) {
+        SDL_assert(captureDevice == _this);
+        captureDevice = NULL;
+    } else {
+        SDL_assert(audioDevice == _this);
+        audioDevice = NULL;
+    }
+}
+
+static void DREAMCASTAUD_WaitDevices(_THIS)
+{
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+	if (hidden->playing) {
+		/* wait */
+		while(SDL_DC_aica_get_pos(0)/_this->spec.samples == hidden->nextbuf) {
+			thd_pass();
+		}
+	}
+	else
+		thd_pass();
+}
+
+static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl)
 {
     /* Set the function pointers */
-    impl->OpenDevice = DREAMCASTAUDIO_OpenDevice;
-    impl->CaptureFromDevice = DREAMCASTAUDIO_CaptureFromDevice;
+    impl->OpenDevice = DREAMCASTAUD_OpenDevice;
+    // impl->WaitDevice = DREAMCASTAUD_WaitDevices; 
+    impl->PlayDevice = DREAMCASTAUD_PlayDevice;
+    impl->GetDeviceBuf = DREAMCASTAUD_GetDeviceBuf;
+    // impl->CaptureFromDevice = DREAMCASTAUD_CaptureFromDevice;
+    // impl->FlushCapture = DREAMCASTAUD_FlushCapture;
+    impl->CloseDevice = DREAMCASTAUD_CloseDevice;
+    impl->DetectDevices = NULL;  /* Assuming no device detection, set to NULL if not needed */
+    impl->AllowsArbitraryDeviceNames = SDL_TRUE;
 
+    /* Set capabilities */
+    impl->HasCaptureSupport = SDL_FALSE;  /* Assuming no capture support */
     impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
-    impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
-    impl->HasCaptureSupport = SDL_TRUE;
+    impl->OnlyHasDefaultCaptureDevice = SDL_FALSE;
 
-    return SDL_TRUE; /* this audio target is available. */
+    /* Initialize the sound processing unit */
+    spu_init();
+    
+    return SDL_TRUE;  /* This audio target is available */
 }
 
-AudioBootStrap DREAMCASTAUDIO_bootstrap = {
-    "dreamcast", "SDL dreamcast audio driver", DREAMCASTAUDIO_Init, SDL_TRUE
+AudioBootStrap DREAMCASTAUD_bootstrap = {
+    "dcaudio", "SDL2 Dreamcast audio driver", DREAMCASTAUD_Init, SDL_FALSE
 };
 
-#endif
 
+// void DREAMCASTAUD_ResumeDevices(void)
+// {
+//     /* Handle resuming audio devices */
+//     if (audioDevice && audioDevice->hidden) {
+//         SDL_UnlockMutex(audioDevice->mixer_lock);
+//     }
+
+//     if (captureDevice && captureDevice->hidden) {
+//         SDL_UnlockMutex(captureDevice->mixer_lock);
+//     }
+// }
+
+__inline__ void SDL_DC_spu_memload_stereo8(int leftpos, int rightpos, void* __restrict__ src0, size_t size)
+{
+    uint8* src = src0;
+    uint32* left = (uint32*)(leftpos + SDL_DC_SPU_RAM_BASE);
+    uint32* right = (uint32*)(rightpos + SDL_DC_SPU_RAM_BASE);
+    unsigned old1, old2;
+    SDL_DC_G2_LOCK(old1, old2);
+    size >>= 5;
+    while (size--) {
+        register unsigned lval, rval;
+
+        lval = *src++; rval = *src++;
+        lval |= (*src++) << 8; rval |= (*src++) << 8;
+        lval |= (*src++) << 16; rval |= (*src++) << 16;
+        lval |= (*src++) << 24; rval |= (*src++) << 24;
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = *src++; rval = *src++;
+        lval |= (*src++) << 8; rval |= (*src++) << 8;
+        lval |= (*src++) << 16; rval |= (*src++) << 16;
+        lval |= (*src++) << 24; rval |= (*src++) << 24;
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = *src++; rval = *src++;
+        lval |= (*src++) << 8; rval |= (*src++) << 8;
+        lval |= (*src++) << 16; rval |= (*src++) << 16;
+        lval |= (*src++) << 24; rval |= (*src++) << 24;
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = *src++; rval = *src++;
+        lval |= (*src++) << 8; rval |= (*src++) << 8;
+        lval |= (*src++) << 16; rval |= (*src++) << 16;
+        lval |= (*src++) << 24; rval |= (*src++) << 24;
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+    }
+    SDL_DC_G2_UNLOCK(old1, old2);
+    SDL_DC_G2_FIFO_WAIT();
+}
+
+__inline__ void SDL_DC_spu_memload_stereo16(int leftpos, int rightpos, void* __restrict__ src0, size_t size)
+{
+    uint16* src = src0;
+    uint32* left = (uint32*)(leftpos + SDL_DC_SPU_RAM_BASE);
+    uint32* right = (uint32*)(rightpos + SDL_DC_SPU_RAM_BASE);
+    unsigned old1, old2;
+    SDL_DC_G2_LOCK(old1, old2);
+    size >>= 4;
+    while (size--) {
+        register unsigned lval, rval;
+
+        lval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        rval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        rval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        rval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+
+        lval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        rval = (*src++) | ((*src++) << 8) | ((*src++) << 16) | ((*src++) << 24);
+        SDL_DC_G2_WRITE_32(left++, lval);
+        SDL_DC_G2_WRITE_32(right++, rval);
+    }
+    SDL_DC_G2_UNLOCK(old1, old2);
+    SDL_DC_G2_FIFO_WAIT();
+}
+
+__inline__ void SDL_DC_spu_memload_mono(uint32 dst, uint32 *__restrict__ src,size_t size)
+{
+	register uint32 *dat  = (uint32*)(dst + SDL_DC_SPU_RAM_BASE);
+
+	unsigned old1,old2;
+	SDL_DC_G2_LOCK(old1, old2);
+	size >>= 5;
+	while(size--) {
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+		SDL_DC_G2_WRITE_32(dat++,*src++);
+	}
+	SDL_DC_G2_UNLOCK(old1, old2);
+	SDL_DC_G2_FIFO_WAIT();
+}
+
+
+#else /* SDL_AUDIO_DRIVER_DREAMCAST  not defined */
+
+void DREAMCASTAUD_WaitDevices(void) {}
+
+#endif /* SDL_AUDIO_DRIVER_DREAMCAST*/
 /* vi: set ts=4 sw=4 expandtab: */

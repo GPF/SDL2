@@ -1,10 +1,13 @@
 #ifdef DREAMCAST
 #include <kos.h>
-#define BMP_PATH "/cd/data/NeHe.bmp"
+#define BMP_PATH "/rd/Troy2024.bmp"
 #else
-#define BMP_PATH "cd/data/NeHe.bmp"
+#define BMP_PATH "data/Troy2024.bmp"
 #endif
 #include <SDL2/SDL.h>
+
+extern uint8 romdisk[];
+KOS_INIT_ROMDISK(romdisk);
 
 static void handle_joystick_events(SDL_Joystick *joystick) {
     if (!joystick) return;

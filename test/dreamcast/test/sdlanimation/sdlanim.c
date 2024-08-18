@@ -21,6 +21,9 @@
 /* Number of pixels for one step of the sprite */
 #define SPRITE_STEP     5
 
+extern uint8 romdisk[];
+KOS_INIT_ROMDISK(romdisk);
+
 void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *position, int *gameover) {
     // Check the D-pad hat position
     Sint16 hat = SDL_JoystickGetHat(joystick, 0); // Assuming using the first hat
@@ -96,7 +99,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
     }
 
     /* load sprite and create texture */
-    temp = SDL_LoadBMP("/cd/data/sprite.bmp");
+    temp = SDL_LoadBMP("/rd/sprite.bmp");
     if (!temp) {
         SDL_Log("Failed to load sprite image: %s", SDL_GetError());
         SDL_DestroyRenderer(renderer);
@@ -117,7 +120,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
     }
 
     /* load grass and create texture */
-    temp = SDL_LoadBMP("/cd/data/grass.bmp");
+    temp = SDL_LoadBMP("/rd/grass.bmp");
     if (!temp) {
         SDL_Log("Failed to load grass image: %s", SDL_GetError());
         SDL_DestroyTexture(spriteTexture);

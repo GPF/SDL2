@@ -84,7 +84,18 @@ const static struct {
 };
 
 typedef struct {
-    int dummy; // Placeholder for any necessary context-specific information
+    int red_size;
+    int green_size;
+    int blue_size;
+    int alpha_size;
+    int depth_size;
+    int stencil_size;
+    int double_buffer;
+    int pixel_mode;
+    int Rmask;
+    int Gmask;
+    int Bmask;
+    int pitch;
 } DreamcastGLContext;
 
 void *DREAMCAST_GL_GetProcAddress(_THIS, const char *proc) {
@@ -108,6 +119,17 @@ void DREAMCAST_GL_SwapBuffers(_THIS) {
 int DREAMCAST_GL_Initialize(_THIS) {
     printf("Initializing SDL2 GLdc...\n");
     glKosInit();
+
+    // Set default values or configure attributes as needed
+    // _this->gl_config.red_size = 5;
+    // _this->gl_config.green_size = 6;
+    // _this->gl_config.blue_size = 5;
+    // _this->gl_config.alpha_size = 0;
+    // _this->gl_config.depth_size = 32;
+    // _this->gl_config.stencil_size = 8;
+    // _this->gl_config.double_buffer = 1;
+
+
     if (DREAMCAST_GL_LoadLibrary(_this, NULL) < 0) {
         return -1;
     }
@@ -136,15 +158,51 @@ SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
         return NULL;
     }
 
+    // Store the GL attributes in the context
+    context->red_size = _this->gl_config.red_size;
+    context->green_size = _this->gl_config.green_size;
+    context->blue_size = _this->gl_config.blue_size;
+    context->alpha_size = _this->gl_config.alpha_size;
+    context->depth_size = _this->gl_config.depth_size;
+    context->stencil_size = _this->gl_config.stencil_size;
+    context->double_buffer = _this->gl_config.double_buffer;
+
     return (SDL_GLContext) context;
 }
 
 int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
+    
+    // Validate the context
     if (!glcontext) {
+        SDL_SetError("Invalid OpenGL context");
         return -1;
     }
-    printf("Making context current...\n");
+    
+    // Check if the window is valid
+    if (!window) {
+        SDL_SetError("Invalid window");
+        return -1;
+    }
+    
+    // // Set up the GLdcConfig structure
+    // GLdcConfig config;
+    // memset(&config, 0, sizeof(config)); // Initialize config to zero
+
+    // // Configure the GLdcConfig with values from your context
+    // config.autosort_enabled = GL_FALSE; // or GL_TRUE based on your needs
+    // config.fsaa_enabled = GL_FALSE; // or GL_TRUE if you want anti-aliasing
+    // config.internal_palette_format = GL_RGB565_KOS; // Adjust if needed
+    // config.initial_op_capacity = 1024; // Example values
+    // config.initial_tr_capacity = 1024;
+    // config.initial_pt_capacity = 1024;
+    // config.initial_immediate_capacity = 1024;
+    // config.texture_twiddle = GL_TRUE; // Adjust based on your needs
+    
+    // // Initialize GL with the configured settings
+    // glKosInitEx(&config);
+
+    printf("OpenGL context made current for window %p\n", window);
     return 0;
 }
 

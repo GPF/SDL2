@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "SDL2/SDL.h"
+#include "kos.h"
 
-#define WAV_PATH "/cd/data/sample.wav"
-// extern uint8 romdisk[];
-// KOS_INIT_ROMDISK(romdisk);
+#define WAV_PATH "/rd/sample.wav"
+extern uint8 romdisk[];
+KOS_INIT_ROMDISK(romdisk);
 
 static struct {
     SDL_AudioSpec spec;
@@ -76,6 +77,33 @@ static int done = 0;
 int main(int argc, char *argv[]) {
     int i;
     char *filename = NULL;
+//   file_t fd;
+//     file_t d;
+//     dirent_t *de;
+//     int amt;
+
+//     printf("Reading directory from romdisk:\r\n");
+
+//     /* Read and print the root directory */
+//     d = fs_open("/rd/", O_RDONLY | O_DIR);
+
+//     if(d == 0) {
+//         printf("Can't open root!\r\n");
+//         return;
+//     }
+
+//     while((de = fs_readdir(d))) {
+//         printf("%s  /  ", de->name);
+
+//         if(de->size >= 0) {
+//             printf("%d\r\n", de->size);
+//         }
+//         else {
+//             printf("DIR\r\n");
+//         }
+//     }
+
+//     fs_close(d);
 
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);

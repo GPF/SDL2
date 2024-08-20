@@ -144,8 +144,8 @@ static __inline__ unsigned  SDL_DC_AICAFREQ(unsigned freq)	{
 }
 
 static __inline__ void SDL_DC_aica_play(int ch,int mode,unsigned long smpptr,int loopst,int loopend,int freq,int vol,int pan,int loopflag) {
-	int val;
-	int old;
+	int val=0;
+	int old=0;
 
 	SDL_DC_G2_LOCK_SIMPLE(old);
 	SDL_DC_G2_WRITE_32(SDL_DC_CHNREGADDR(ch, 0),(SDL_DC_G2_READ_32(SDL_DC_CHNREGADDR(ch, 0)) & ~0x4000) | 0x8000);

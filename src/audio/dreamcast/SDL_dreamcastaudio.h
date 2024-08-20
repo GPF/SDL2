@@ -33,11 +33,11 @@ typedef struct {
     uint32_t *leftpos;   // Use uint32_t if it's not defined elsewhere
     uint32_t *rightpos;  // Use uint32_t if it's not defined elsewhere
     void *mixbuf;
-    unsigned int size;
+   //  unsigned int size;
     unsigned int mixlen;
     int nextbuf;
     int playing;
-    SDL_AudioSpec *spec; // Add this member to access audio specifications
+   //  SDL_AudioSpec *spec; // Add this member to access audio specifications
 } SDL_PrivateAudioData;
 
 #endif /* SDL_dreamcastaudio_h_ */

@@ -2675,9 +2675,11 @@ elseif(DREAMCAST)
     set(SDL_THREAD_DREAMCAST 1)
     file(GLOB DREAMCAST_THREAD_SOURCES ${SDL2_SOURCE_DIR}/src/thread/dreamcast/*.c)
     list(APPEND SOURCE_FILES ${DREAMCAST_THREAD_SOURCES}
-      ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_systls.c
-      ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_syscond.c)
+      ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_systls.c)
     set(HAVE_SDL_THREADS TRUE)
+    # set(SDL_THREAD_PTHREAD 1)
+    # set(SDL_PTHREADS ON)
+    #  CheckPTHREAD()
   endif()
 
   if(SDL_TIMERS)

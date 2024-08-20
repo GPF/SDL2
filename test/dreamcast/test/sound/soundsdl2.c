@@ -2,12 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "SDL2/SDL.h"
+#ifdef DREAMCAST
 #include "kos.h"
 
 #define WAV_PATH "/rd/sample.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
-
+#else
+#define WAV_PATH "data/sample.wav"
+#endif
 static struct {
     SDL_AudioSpec spec;
     Uint8 *sound;    /* Pointer to wave data */
@@ -90,7 +93,7 @@ int main(int argc, char *argv[]) {
 //     if(d == 0) {
 //         printf("Can't open root!\r\n");
 //         return;
-//     }
+//     } 
 
 //     while((de = fs_readdir(d))) {
 //         printf("%s  /  ", de->name);
@@ -127,10 +130,10 @@ int main(int argc, char *argv[]) {
         quit(1);
     }
 // Example configuration
-// wave.spec.freq = 22050;    // Sample rate
-// wave.spec.format = AUDIO_S16LSB;  // Audio format
-// wave.spec.channels = 1;    // Stereo
-// wave.spec.samples = 16384;  // Buffer size
+wave.spec.freq = 22050;    // Sample rate
+wave.spec.format = AUDIO_S16LSB;  // Audio format
+wave.spec.channels =2;    // Stereo 
+wave.spec.samples = 1024;  // Buffer size
 
     wave.spec.callback = fillerup;
 

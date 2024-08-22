@@ -112,8 +112,9 @@ int DREAMCAST_GL_LoadLibrary(_THIS, const char *path) {
     return 0;
 }
 
-void DREAMCAST_GL_SwapBuffers(_THIS) {
+int DREAMCAST_GL_SwapBuffers(_THIS, SDL_Window * window){
     glKosSwapBuffers();
+    return 0;
 }
 
 int DREAMCAST_GL_Initialize(_THIS) {

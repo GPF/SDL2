@@ -184,6 +184,7 @@ void SDL_SetMainReady(void)
 /* Initialize all the subsystems that require initialization before threads start */
 void SDL_InitMainThread(void)
 {
+#ifndef __DREAMCAST__    
     SDL_InitTLSData();
     SDL_InitTicks();
     SDL_InitFilesystem();
@@ -191,8 +192,9 @@ void SDL_InitMainThread(void)
     SDL_InitProperties();
     SDL_GetGlobalProperties();
     SDL_InitHints();
+#endif    
 }
-
+#ifndef __DREAMCAST__   
 static void SDL_QuitMainThread(void)
 {
     SDL_QuitHints();
@@ -202,6 +204,7 @@ static void SDL_QuitMainThread(void)
     SDL_QuitTicks();
     SDL_QuitTLSData();
 }
+#endif  
 
 int SDL_InitSubSystem(Uint32 flags)
 {

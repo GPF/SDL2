@@ -99,7 +99,7 @@ typedef union
 
 #define EXTRACT_WORDS(ix0,ix1,d)				\
 do {								\
-  ieee_double_shape_type ew_u;					\
+  ieee_double_shape_type ew_u = {0};					\
   ew_u.value = (d);						\
   (ix0) = ew_u.parts.msw;					\
   (ix1) = ew_u.parts.lsw;					\
@@ -109,7 +109,7 @@ do {								\
 
 #define GET_HIGH_WORD(i,d)					\
 do {								\
-  ieee_double_shape_type gh_u;					\
+  ieee_double_shape_type gh_u = {0};					\
   gh_u.value = (d);						\
   (i) = gh_u.parts.msw;						\
 } while (0)
@@ -118,7 +118,7 @@ do {								\
 
 #define GET_LOW_WORD(i,d)					\
 do {								\
-  ieee_double_shape_type gl_u;					\
+  ieee_double_shape_type gl_u = {0};					\
   gl_u.value = (d);						\
   (i) = gl_u.parts.lsw;						\
 } while (0)
@@ -127,7 +127,7 @@ do {								\
 
 #define INSERT_WORDS(d,ix0,ix1)					\
 do {								\
-  ieee_double_shape_type iw_u;					\
+  ieee_double_shape_type iw_u = {0};					\
   iw_u.parts.msw = (ix0);					\
   iw_u.parts.lsw = (ix1);					\
   (d) = iw_u.value;						\
@@ -137,7 +137,7 @@ do {								\
 
 #define SET_HIGH_WORD(d,v)					\
 do {								\
-  ieee_double_shape_type sh_u;					\
+  ieee_double_shape_type sh_u = {0};					\
   sh_u.value = (d);						\
   sh_u.parts.msw = (v);						\
   (d) = sh_u.value;						\
@@ -147,7 +147,7 @@ do {								\
 
 #define SET_LOW_WORD(d,v)					\
 do {								\
-  ieee_double_shape_type sl_u;					\
+  ieee_double_shape_type sl_u = {0};					\
   sl_u.value = (d);						\
   sl_u.parts.lsw = (v);						\
   (d) = sl_u.value;						\

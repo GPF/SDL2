@@ -184,24 +184,24 @@ void SDL_SetMainReady(void)
 /* Initialize all the subsystems that require initialization before threads start */
 void SDL_InitMainThread(void)
 {
-    SDL_InitTLSData();
-    SDL_InitTicks();
-    SDL_InitFilesystem();
-    SDL_InitLog();
-    SDL_InitProperties();
-    SDL_GetGlobalProperties();
-    SDL_InitHints();
+    // SDL_InitTLSData();
+    // SDL_InitTicks();
+    // SDL_InitFilesystem();
+    // SDL_InitLog();
+    // SDL_InitProperties();
+    // SDL_GetGlobalProperties();
+    // SDL_InitHints();
 }
 
-static void SDL_QuitMainThread(void)
-{
-    SDL_QuitHints();
-    SDL_QuitProperties();
-    SDL_QuitLog();
-    SDL_QuitFilesystem();
-    SDL_QuitTicks();
-    SDL_QuitTLSData();
-}
+// static void SDL_QuitMainThread(void)
+// {
+    // SDL_QuitHints();
+    // SDL_QuitProperties();
+    // SDL_QuitLog();
+    // SDL_QuitFilesystem();
+    // SDL_QuitTicks();
+    // SDL_QuitTLSData();
+//}
 
 int SDL_InitSubSystem(Uint32 flags)
 {

@@ -161,8 +161,8 @@ void SDL_SYS_SetupThread(const char *name)
 #endif
     }
 
-   /* NativeClient does not yet support signals.*/
-#if !defined(__NACL__)
+/* NativeClient does not yet support signals.*/
+#if !defined(__NACL__) && !defined(__DREAMCAST__)
     /* Mask asynchronous signals for this thread */
     sigemptyset(&mask);
     for (i = 0; sig_list[i]; ++i) {
@@ -186,9 +186,13 @@ SDL_threadID SDL_ThreadID(void)
     return (SDL_threadID)pthread_self();
 }
 
+// #ifdef __DREAMCAST__
+//     int min_priority = 0;  // Default priority for Dreamcast
+//     int max_priority = 31; // Maximum priority for Dreamcast (based on KOS documentation)
+// #endif
 int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
 {
-#if defined(__NACL__) || defined(__RISCOS__) || defined(__OS2__)
+#if defined(__NACL__) || defined(__RISCOS__) || defined(__OS2__)// || defined(__DREAMCAST__)
     /* FIXME: Setting thread priority does not seem to be supported in NACL */
     return 0;
 #else
@@ -198,13 +202,15 @@ int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
     pthread_t thread = pthread_self();
     const char *policyhint = SDL_GetHint(SDL_HINT_THREAD_PRIORITY_POLICY);
     const SDL_bool timecritical_realtime_hint = SDL_GetHintBoolean(SDL_HINT_THREAD_FORCE_REALTIME_TIME_CRITICAL, SDL_FALSE);
+    int min_priority=0;
+    int max_priority=31;
 
     if (pthread_getschedparam(thread, &policy, &sched) != 0) {
         return SDL_SetError("pthread_getschedparam() failed");
     }
 
     /* Higher priority levels may require changing the pthread scheduler policy
-     * for the thread.  SDL will make such changes by default but there is
+     * for the thread. SDL will make such changes by default but there is
      * also a hint allowing that behavior to be overridden. */
     switch (priority) {
     case SDL_THREAD_PRIORITY_LOW:
@@ -252,31 +258,52 @@ int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
         return SDL_LinuxSetThreadPriorityAndPolicy(linuxTid, priority, policy);
     }
 #else
-    if (priority == SDL_THREAD_PRIORITY_LOW) {
-        sched.sched_priority = sched_get_priority_min(policy);
-    } else if (priority == SDL_THREAD_PRIORITY_TIME_CRITICAL) {
-        sched.sched_priority = sched_get_priority_max(policy);
-    } else {
-        int min_priority = sched_get_priority_min(policy);
-        int max_priority = sched_get_priority_max(policy);
+    #ifdef __DREAMCAST__
+    {
+        // Map SDL priorities to Dreamcast priority levels
+        switch (priority) {
+            case SDL_THREAD_PRIORITY_LOW:
+                min_priority = 0;
+                sched.sched_priority = 0;
+                break;
+            case SDL_THREAD_PRIORITY_HIGH:
+                min_priority = 15;
+                sched.sched_priority = 26;
+                break;
+            case SDL_THREAD_PRIORITY_TIME_CRITICAL:
+                min_priority = 31;
+                sched.sched_priority = 31;
+                break;
+            default:
+                sched.sched_priority = 0;
+                min_priority = 0;
+                break;
+        }
+
+    }
+#else
+    /* Get the priority range for the current thread on other platforms */
+    min_priority = sched_get_priority_min(policy);
+    max_priority = sched_get_priority_max(policy);
+#endif /* __DREAMCAST__ */
 
 #if defined(__MACOSX__) || defined(__IPHONEOS__) || defined(__TVOS__)
-        if (min_priority == 15 && max_priority == 47) {
-            /* Apple has a specific set of thread priorities */
-            if (priority == SDL_THREAD_PRIORITY_HIGH) {
-                sched.sched_priority = 45;
-            } else {
-                sched.sched_priority = 37;
-            }
-        } else
+    if (min_priority == 15 && max_priority == 47) {
+        /* Apple has a specific set of thread priorities */
+        if (priority == SDL_THREAD_PRIORITY_HIGH) {
+            sched.sched_priority = 45;
+        } else {
+            sched.sched_priority = 37;
+        }
+    } else
 #endif /* __MACOSX__ || __IPHONEOS__ || __TVOS__ */
-        {
-            sched.sched_priority = (min_priority + (max_priority - min_priority) / 2);
-            if (priority == SDL_THREAD_PRIORITY_HIGH) {
-                sched.sched_priority += ((max_priority - min_priority) / 4);
-            }
+    {
+        sched.sched_priority = (min_priority + (max_priority - min_priority) / 2);
+        if (priority == SDL_THREAD_PRIORITY_HIGH) {
+            sched.sched_priority += ((max_priority - min_priority) / 4);
         }
     }
+
     if (pthread_setschedparam(thread, policy, &sched) != 0) {
         return SDL_SetError("pthread_setschedparam() failed");
     }

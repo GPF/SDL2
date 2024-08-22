@@ -35,13 +35,20 @@
 #include "../SDL_timer_c.h"
 
 static SDL_bool ticks_started = SDL_FALSE;
+static Uint64 start;
 
 void SDL_TicksInit(void)
 {
+    uint32 s, ms;
+	uint64 msec;
     if (ticks_started) {
         return;
     }
     ticks_started = SDL_TRUE;
+	timer_ms_gettime(&s, &ms);
+	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
+
+	start = (Uint32)msec;
 }
 
 void SDL_TicksQuit(void)
@@ -51,19 +58,18 @@ void SDL_TicksQuit(void)
 
 Uint64 SDL_GetTicks64(void)
 {
+    uint32 s, ms;
+	uint64 msec;    
     if (!ticks_started) {
         SDL_TicksInit();
     }
 
     // Implement time retrieval logic
-    // For now, return a dummy value
-    return 0;
-}
+	timer_ms_gettime(&s, &ms);
+	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
 
-// Uint32 SDL_GetTicks(void)
-// {
-//     return (Uint32)SDL_GetTicks64();
-// }
+	return (Uint32)msec - start;
+}
 
 void SDL_Delay(Uint32 ms)
 {
@@ -71,16 +77,21 @@ void SDL_Delay(Uint32 ms)
     thd_sleep(ms);
 }
 
-int SDL_SYS_TimerInit(void)
+Uint64 SDL_GetPerformanceCounter(void)
 {
-    // Timer initialization code
-    return 0;
+    uint32 s, ms;
+	uint64 msec;       
+	timer_ms_gettime(&s, &ms);
+	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
+
+	return (Uint32)msec;
 }
 
-void SDL_SYS_TimerQuit(void)
+Uint64 SDL_GetPerformanceFrequency(void)
 {
-    // Timer cleanup code
+    return 1000000;
 }
+
 
 #endif /* SDL_TIMER_DREAMCAST */
 

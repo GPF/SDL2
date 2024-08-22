@@ -26,12 +26,13 @@
 #include "SDL_thread.h"
 #include "SDL_systhread_c.h"
 
-#include <arch/spinlock.h>
+#include "kos/mutex.h"
+// #include <arch/spinlock.h>
 
 struct SDL_mutex {
 	int recursive;
 	Uint32 owner;
-	spinlock_t mutex;
+	mutex_t mutex;
 };
 
 /* Create a mutex */
@@ -42,7 +43,8 @@ SDL_mutex *SDL_CreateMutex(void)
 	/* Allocate mutex memory */
 	mutex = (SDL_mutex *)SDL_malloc(sizeof(*mutex));
 	if ( mutex ) {
-		spinlock_init(&mutex->mutex);
+		mutex_init(&mutex->mutex, MUTEX_TYPE_DEFAULT);
+		// spinlock_init(&mutex->mutex);
 		mutex->recursive = 0;
 		mutex->owner = 0;
 	} else {
@@ -55,6 +57,7 @@ SDL_mutex *SDL_CreateMutex(void)
 void SDL_DestroyMutex(SDL_mutex *mutex)
 {
 	if ( mutex ) {
+		mutex_destroy(&mutex->mutex);
 		SDL_free(mutex);
 	}
 }
@@ -77,7 +80,8 @@ int SDL_mutexP(SDL_mutex *mutex)
 		   We set the locking thread id after we obtain the lock
 		   so unlocks from other threads will fail.
 		*/
-		spinlock_lock(&mutex->mutex);
+		mutex_lock(&mutex->mutex);
+		// spinlock_lock(&mutex->mutex);
 		mutex->owner = this_thread;
 		mutex->recursive = 0;
 	}
@@ -108,7 +112,8 @@ int SDL_mutexV(SDL_mutex *mutex)
 		   then release the lock semaphore.
 		 */
 		mutex->owner = 0;
-		spinlock_unlock(&mutex->mutex);
+		// spinlock_unlock(&mutex->mutex);
+		mutex_unlock(&mutex->mutex);
 	}
 	return 0;
 }

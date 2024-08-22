@@ -2,20 +2,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "SDL2/SDL.h"
+
 #ifdef DREAMCAST
 #include "kos.h"
-
 #define WAV_PATH "/rd/sample.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else
 #define WAV_PATH "data/sample.wav"
 #endif
+
 static struct {
     SDL_AudioSpec spec;
     Uint8 *sound;    /* Pointer to wave data */
     Uint32 soundlen; /* Length of wave data */
-    int soundpos;    /* Current play position */
+    Uint32 soundpos; /* Current play position */
 } wave;
 
 static SDL_AudioDeviceID device;
@@ -34,12 +35,20 @@ static void close_audio(void) {
 }
 
 static void open_audio(void) {
+    SDL_Log("Attempting to open audio device with spec:");
+    SDL_Log("  Frequency: %d", wave.spec.freq);
+    SDL_Log("  Format: %d", wave.spec.format);
+    SDL_Log("  Channels: %d", wave.spec.channels);
+    SDL_Log("  Samples: %d", wave.spec.samples);
+
     device = SDL_OpenAudioDevice(NULL, SDL_FALSE, &wave.spec, NULL, 0);
     if (!device) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't open audio: %s\n", SDL_GetError());
         SDL_FreeWAV(wave.sound);
         quit(2);
     }
+
+    SDL_Log("SDL_OpenAudioDevice successful");
     SDL_PauseAudioDevice(device, SDL_FALSE);
 }
 
@@ -51,14 +60,11 @@ static void reopen_audio(void) {
 #endif
 
 void SDLCALL fillerup(void *unused, Uint8 *stream, int len) {
-    Uint8 *waveptr;
-    int waveleft;
+    Uint8 *waveptr = wave.sound + wave.soundpos;
+    int waveleft = wave.soundlen - wave.soundpos;
 
-    /* Set up the pointers */
-    waveptr = wave.sound + wave.soundpos;
-    waveleft = wave.soundlen - wave.soundpos;
+    SDL_Log("fillerup called, len: %d", len);
 
-    /* Go! */
     while (waveleft <= len) {
         SDL_memcpy(stream, waveptr, waveleft);
         stream += waveleft;
@@ -69,83 +75,73 @@ void SDLCALL fillerup(void *unused, Uint8 *stream, int len) {
     }
     SDL_memcpy(stream, waveptr, len);
     wave.soundpos += len;
-
-    /* Log the callback call */
-    // SDL_Log("fillerup called, pos: %d, len: %d", wave.soundpos, len);
 }
 
 static int done = 0;
 
+#ifdef __EMSCRIPTEN__
+void loop(void) {
+    if (done || (SDL_GetAudioDeviceStatus(device) != SDL_AUDIO_PLAYING)) {
+        emscripten_cancel_main_loop();
+    }
+}
+#endif
 
 int main(int argc, char *argv[]) {
-    int i;
-    char *filename = NULL;
-//   file_t fd;
-//     file_t d;
-//     dirent_t *de;
-//     int amt;
-
-//     printf("Reading directory from romdisk:\r\n");
-
-//     /* Read and print the root directory */
-//     d = fs_open("/rd/", O_RDONLY | O_DIR);
-
-//     if(d == 0) {
-//         printf("Can't open root!\r\n");
-//         return;
-//     } 
-
-//     while((de = fs_readdir(d))) {
-//         printf("%s  /  ", de->name);
-
-//         if(de->size >= 0) {
-//             printf("%d\r\n", de->size);
-//         }
-//         else {
-//             printf("DIR\r\n");
-//         }
-//     }
-
-//     fs_close(d);
-
+    char *filename = WAV_PATH;
+    SDL_Window *window;
+    SDL_Surface *image_surface;
+    SDL_Texture *texture;
+    SDL_Renderer *renderer;
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
 
     /* Load the SDL library */
-    if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
         return 1;
     }
-
-    filename = WAV_PATH;
-
-    if (!filename) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s\n", SDL_GetError());
-        quit(1);
-    }
+    printf("SDL_CreateWindow\n"); 
+    // Create a window
+    window = SDL_CreateWindow("SDL2 Displaying Image", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN);
+    if (!window) {
+        printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;  
+    } 
+ 
+    printf("SDL_CreateRenderer\n"); 
+    // Create a renderer
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    if (!renderer) { 
+        printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit(); 
+        return 1;  
+    } 
 
     /* Load the wave file into memory */
     if (SDL_LoadWAV(filename, &wave.spec, &wave.sound, &wave.soundlen) == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         quit(1);
     }
-// Example configuration
-wave.spec.freq = 22050;    // Sample rate
-wave.spec.format = AUDIO_S16LSB;  // Audio format
-wave.spec.channels =2;    // Stereo 
-wave.spec.samples = 1024;  // Buffer size
-
+    wave.spec.freq= 22150;
+    wave.spec.format    = AUDIO_S16LSB;
+    wave.spec.channels = 1;
+    wave.spec.samples = 4096;
     wave.spec.callback = fillerup;
 
     /* Show the list of available drivers */
     SDL_Log("Available audio drivers:");
-    for (i = 0; i < SDL_GetNumAudioDrivers(); ++i) {
-        SDL_Log("%i: %s", i, SDL_GetAudioDriver(i));
+    for (int i = 0; i < SDL_GetNumAudioDrivers(); ++i) {
+        SDL_Log("%i: %s", i, SDL_GetAudioDriver(i)); 
     }
 
     SDL_Log("Using audio driver: %s\n", SDL_GetCurrentAudioDriver());
 
     open_audio();
+
+    SDL_FlushEvents(SDL_AUDIODEVICEADDED, SDL_AUDIODEVICEREMOVED);
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(loop, 0, 1);
@@ -157,16 +153,18 @@ wave.spec.samples = 1024;  // Buffer size
             if (event.type == SDL_QUIT) {
                 done = 1;
             }
+            if ((event.type == SDL_AUDIODEVICEADDED && !event.adevice.iscapture) ||
+                (event.type == SDL_AUDIODEVICEREMOVED && !event.adevice.iscapture && event.adevice.which == device)) {
+                reopen_audio();
+            }
         }
         SDL_Delay(100);
-        // SDL_Log("Main loop running");
     }
 #endif
 
     /* Clean up on signal */
     close_audio();
     SDL_FreeWAV(wave.sound);
-    SDL_free(filename);
     SDL_Quit();
     return 0;
 }

@@ -1,46 +1,73 @@
-/*
-  Simple DirectMedia Layer
-  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
-
-  This software is provided 'as-is', without any express or implied
-  warranty.  In no event will the authors be held liable for any damages
-  arising from the use of this software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-     claim that you wrote the original software. If you use this software
-     in a product, an acknowledgment in the product documentation would be
-     appreciated but is not required.
-  2. Altered source versions must be plainly marked as such, and must not be
-     misrepresented as being the original software.
-  3. This notice may not be removed or altered from any source distribution.
-*/
 #include "../../SDL_internal.h"
 
 #ifdef SDL_AUDIO_DRIVER_DREAMCAST
 
 #include "SDL_audio.h"
 #include "../SDL_audio_c.h"
-#include "SDL_dreamcastaudio.h"
-#include "aica.h"
-#include <dc/spu.h>
+#include "SDL_dreamcastaudio.h" // Defines SDL_PrivateAudioData struct
+#include <dc/sound/stream.h> // Include KOS sound stream library
 #include <kos/thread.h>
-
 #include "../../SDL_internal.h"
 #include "../SDL_sysaudio.h"
-#include <stdint.h>
+#include "kos.h"
 
 static SDL_AudioDevice *audioDevice = NULL;   // Pointer to the active audio output device
 static SDL_AudioDevice *captureDevice = NULL; // Pointer to the active audio capture device
-static __inline__ void SDL_DC_spu_memload_mono(uint32 dst, uint32 *__restrict__ src, size_t size);
-static __inline__ void SDL_DC_spu_memload_stereo8(int leftpos, int rightpos, void* __restrict__ src0, size_t size);
-static __inline__ void SDL_DC_spu_memload_stereo16(int leftpos, int rightpos, void* __restrict__ src0, size_t size);
+static void DREAMCASTAUD_WaitDevices(_THIS);
 
-static int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
-{
+// Function to get the device buffer
+static void *DREAMCASTAUD_GetDeviceBuf(_THIS) {
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+
+    // Check if the buffer is valid
+    if (hidden && hidden->buffer) {
+        return hidden->buffer;
+    }
+
+    return NULL;
+}
+
+static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
+    SDL_AudioDevice *device = (SDL_AudioDevice *)audioDevice;
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
+    void *buffer = DREAMCASTAUD_GetDeviceBuf(device);
+
+    SDL_Log("stream_callback called with %d samples requested", req);
+    SDL_Log("Buffer size: %d bytes, Write offset: %d bytes", device->spec.size, hidden->buffer_offset);
+
+    if (!buffer) {
+        SDL_Log("Buffer is NULL.");
+        *done = 0;
+        return NULL;
+    }
+
+    int buffer_size = device->spec.size;
+    int available_data = buffer_size - hidden->buffer_offset;
+    int bytes_to_copy = SDL_min(req, available_data);
+
+    if (available_data >= req) {
+        // Copy available data to buffer
+        memcpy(buffer, hidden->buffer + hidden->buffer_offset, bytes_to_copy);
+        hidden->buffer_offset += bytes_to_copy;
+    } else {
+        // Handle buffer wrap-around
+        memcpy(buffer, hidden->buffer + hidden->buffer_offset, available_data);
+        SDL_memset((Uint8 *)buffer + available_data, device->spec.silence, req - available_data);
+        hidden->buffer_offset = req - available_data; // Wrap around and update offset
+    }
+
+    if (hidden->buffer_offset >= buffer_size) {
+        hidden->buffer_offset = 0; // Ensure offset wraps around
+    }
+
+    *done = req;
+    return buffer;
+}
+
+
+
+// Open the audio device
+static int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     SDL_PrivateAudioData *hidden;
     SDL_AudioFormat test_format;
     SDL_bool iscapture = SDL_FALSE;
@@ -51,7 +78,7 @@ static int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
         captureDevice = _this;
     } else {
         audioDevice = _this;
-    } 
+    }
 
     hidden = (SDL_PrivateAudioData *)SDL_malloc(sizeof(*hidden));
     if (!hidden) {
@@ -60,10 +87,15 @@ static int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     SDL_zerop(hidden);
     _this->hidden = (struct SDL_PrivateAudioData *)hidden;
 
+    // Initialize the sound stream system
+    if (snd_stream_init() != 0) {
+        SDL_free(hidden);
+        return SDL_SetError("Failed to initialize sound stream system");
+    }
+
     // Find a compatible format
     for (test_format = SDL_FirstAudioFormat(_this->spec.format); test_format; test_format = SDL_NextAudioFormat()) {
-        if ((test_format == AUDIO_S8) ||
-            (test_format == AUDIO_S16LSB)) {
+        if ((test_format == AUDIO_S8) || (test_format == AUDIO_S16LSB)) {
             _this->spec.format = test_format;
             break;
         }
@@ -71,140 +103,100 @@ static int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
 
     if (!test_format) {
         /* Didn't find a compatible format :( */
-        printf("Dreamcast unsupported audio format: 0x%x", _this->spec.format);
-        return 0;
+        snd_stream_shutdown();
+        SDL_free(hidden);
+        return SDL_SetError("Dreamcast unsupported audio format: 0x%x", _this->spec.format);
     }
 
     SDL_CalculateAudioSpec(&_this->spec);
 
-    // Allocate and initialize mixing buffer
-    hidden->mixlen = _this->spec.size;
-    hidden->mixbuf = (Uint8 *)SDL_malloc(hidden->mixlen);
-    if (!hidden->mixbuf) {
+    // Allocate the stream with the data callback
+    hidden->stream_handle = snd_stream_alloc(NULL, _this->spec.size);
+    if (hidden->stream_handle == SND_STREAM_INVALID) {
         SDL_free(hidden);
+        snd_stream_shutdown();
+        return SDL_SetError("Failed to allocate sound stream");
+    }
+
+    // Allocate a single buffer for reuse
+    hidden->buffer = (Uint8 *)memalign(32, _this->spec.size); // Ensure 32-byte alignment
+    if (!hidden->buffer) {
+        SDL_free(hidden);
+        snd_stream_shutdown();
         return SDL_OutOfMemory();
     }
-    SDL_memset(hidden->mixbuf, _this->spec.silence, _this->spec.size);
-    hidden->leftpos = (uint32_t *)0x11000;  // Adjust type if needed
-    hidden->rightpos = (uint32_t *)(0x11000 + _this->spec.size);  // Adjust type if needed
-    hidden->playing = 0;
-    hidden->nextbuf = 0;
-
-    // Initialize the sound device
-    irq_enable();
-
-    SDL_LogCritical(SDL_LOG_CATEGORY_AUDIO,
-                    "Dreamcast audio driver initialized\n");
+    hidden->buffer_offset = 0; // Initialize buffer offset
+    snd_stream_queue_enable(hidden->stream_handle);
+    SDL_Log("Dreamcast audio driver initialized: %d\n", hidden->stream_handle);
 
     return 0;
 }
 
-static void DREAMCASTAUD_WaitDevices(_THIS)
-{
+
+// Start playback of the audio device
+static void DREAMCASTAUD_PlayDevice(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
-    
-    if (hidden->playing) {
-        int current_pos = SDL_DC_aica_get_pos(0) / _this->spec.samples;
-        printf("Waiting in DREAMCASTAUD_WaitDevices. Current position: %d, Next buffer: %d\n",
-               current_pos, hidden->nextbuf);
-        while (current_pos == hidden->nextbuf) {
-            thd_pass();
-            current_pos = SDL_DC_aica_get_pos(0) / _this->spec.samples;
-            // printf("Still waiting... Current position: %d, Next buffer: %d\n",
-                //    current_pos, hidden->nextbuf);
-        }
-        printf("Done waiting. Buffer is ready.\n");
-    } else {
-        printf("No playback to wait for.\n");
-    }
-}
+    int channels = _this->spec.channels;
+    int frequency = _this->spec.freq;
 
-static void DREAMCASTAUD_PlayDevice(_THIS)
-{
-    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
-    SDL_AudioSpec *spec = &_this->spec;
-    unsigned int offset;
-    
-    // Log the function entry and current playing state
-    printf("DREAMCASTAUD_PlayDevice called. Playing: %d\n", hidden->playing);
-
-    // Wait until it's possible to write
-    if (hidden->playing) {
-        // printf("Waiting for buffer to be ready. Next buffer: %d\n", hidden->nextbuf);
-        while (SDL_DC_aica_get_pos(0) / spec->samples == hidden->nextbuf) {
-            thd_pass();
-        }
-        // printf("Buffer is ready. Proceeding to load data.\n");
-    } else {
-        printf("Audio is not currently playing. Loading data directly.\n");
+    if (hidden->stream_handle == SND_STREAM_INVALID) {
+        SDL_SetError("Invalid stream handle");
+        return;
     }
 
-    offset = hidden->nextbuf * spec->size;
-    hidden->nextbuf ^= 1;
-
-    // Log buffer offset and size
-    // printf("Buffer offset: %u, Buffer size: %u\n", offset, spec->size);
-
-    // Load the audio buffer
-    if (spec->channels == 1) {
-        printf("Loading mono audio data.\n");
-        SDL_DC_spu_memload_mono((uint32)(hidden->leftpos + offset), (uint32 *)hidden->mixbuf, spec->size);
-    } else {
-        offset >>= 1;
-        if (spec->format == AUDIO_S8) {
-            printf("Loading 8-bit stereo audio data.\n");
-            SDL_DC_spu_memload_stereo8((uint32)(hidden->leftpos + offset), (uint32 )(hidden->rightpos + offset), (uint32 *)hidden->mixbuf, spec->size);
-        } else {
-            printf("Loading 16-bit stereo audio data.\n");
-            SDL_DC_spu_memload_stereo16((uint32)(hidden->leftpos + offset), (uint32)(hidden->rightpos + offset), (uint32 *)hidden->mixbuf, spec->size);
-        }
-    }
-
-    // Start playback if not already playing
     if (!hidden->playing) {
-        int mode = (spec->format == AUDIO_S8) ? SDL_DC_SM_8BIT : SDL_DC_SM_16BIT;
-        hidden->playing = 1;
+        SDL_Log("DREAMCASTAUD_PlayDevice called");
+        SDL_Log("Format: %d, Channels: %d, Frequency: %d", _this->spec.format, channels, frequency);
+        snd_stream_reinit(hidden->stream_handle, stream_callback);
+        snd_stream_volume(hidden->stream_handle, 255); // Max volume
 
-        printf("Starting playback. Channels: %d, Mode: %d\n", spec->channels, mode);
-        
-        if (spec->channels == 1) {
-            printf("Playing mono audio.\n");
-            SDL_DC_aica_play(0, mode, (unsigned long)hidden->leftpos, 0, spec->samples << 1, spec->freq, 255, 128, 1);
+        // Check the audio format and initialize the stream accordingly
+        if (_this->spec.format == AUDIO_S16LSB) {
+            // Initialize stream for 16-bit PCM
+            snd_stream_start(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
+        } else if (_this->spec.format == AUDIO_S8) {
+            // Initialize stream for 8-bit PCM
+            snd_stream_start(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
         } else {
-            printf("Playing stereo audio.\n");
-            SDL_DC_aica_play(0, mode, (unsigned long)hidden->leftpos, 0, spec->samples << 1, spec->freq, 255, 0, 1);
-            SDL_DC_aica_play(1, mode, (unsigned long)hidden->rightpos, 0, spec->samples << 1, spec->freq, 255, 255, 1);
+            SDL_SetError("Unsupported audio format: %d", _this->spec.format);
+            return;
+        }
+
+        // Start the audio stream
+        snd_stream_queue_go(hidden->stream_handle);
+
+        hidden->playing = SDL_TRUE;
+    } else {
+        while (snd_stream_poll(hidden->stream_handle) < 0) {
+            thd_pass();
         }
     }
 }
 
-static Uint8* DREAMCASTAUD_GetDeviceBuf(_THIS)
-{
+// Wait for the audio devices
+// Wait for the audio devices
+static void DREAMCASTAUD_WaitDevices(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
-    return hidden->mixbuf;
+    if (hidden->playing) {
+        SDL_Log("DREAMCASTAUD_WaitDevices called");
+        snd_stream_poll(hidden->stream_handle);
+    } 
+//     else {
+//         thd_pass(); // This will make the thread yield until audio is playing
+//     }
 }
 
-// static int DREAMCASTAUD_CaptureFromDevice(_THIS, void *buffer, int buflen)
-// {
-//     /* Implement capture functionality if needed */
-//     return 0;  /* Example return value */
-// }
 
-// static void DREAMCASTAUD_FlushCapture(_THIS)
-// {
-//     /* Implement capture flush functionality if needed */
-// }
-
-static void DREAMCASTAUD_CloseDevice(_THIS)
-{
+// Close the audio device
+static void DREAMCASTAUD_CloseDevice(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
-
-    /* Clean up and close the device */
-    spu_shutdown();
 
     if (hidden) {
-        if (hidden->mixbuf) {
-            SDL_free(hidden->mixbuf);
+        if (hidden->stream_handle != SND_STREAM_INVALID) {
+            snd_stream_destroy(hidden->stream_handle);
+        }
+        if (hidden->buffer) {
+            SDL_free(hidden->buffer);
         }
         SDL_free(hidden);
         _this->hidden = NULL;
@@ -217,156 +209,34 @@ static void DREAMCASTAUD_CloseDevice(_THIS)
         SDL_assert(audioDevice == _this);
         audioDevice = NULL;
     }
+
+    snd_stream_shutdown();
 }
 
+// Initialize the audio driver
+static void DREAMCASTAUD_ThreadInit(_THIS) {
+    kthread_t *thid = thd_get_current(); // Get the current thread ID
+    thd_set_prio(thid, PRIO_DEFAULT + 1); // Set a higher priority
+    SDL_Log("Audio thread priority set to higher.");
+}
 
-
-static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl)
-{
+// Initialize the SDL2 Dreamcast audio driver
+static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl) {
     /* Set the function pointers */
+    // impl->ThreadInit = DREAMCASTAUD_ThreadInit;
+    impl->ThreadDeinit = NULL; // Implement if needed
     impl->OpenDevice = DREAMCASTAUD_OpenDevice;
-    impl->WaitDevice = DREAMCASTAUD_WaitDevices; 
     impl->PlayDevice = DREAMCASTAUD_PlayDevice;
-    impl->GetDeviceBuf = DREAMCASTAUD_GetDeviceBuf;
-    // impl->CaptureFromDevice = DREAMCASTAUD_CaptureFromDevice;
-    // impl->FlushCapture = DREAMCASTAUD_FlushCapture;
+    impl->WaitDevice = DREAMCASTAUD_WaitDevices;
     impl->CloseDevice = DREAMCASTAUD_CloseDevice;
-    impl->DetectDevices = NULL;  /* Assuming no device detection, set to NULL if not needed */
-    impl->AllowsArbitraryDeviceNames = SDL_TRUE;
+    impl->GetDeviceBuf = DREAMCASTAUD_GetDeviceBuf;
 
-    /* Set capabilities */
-    impl->HasCaptureSupport = SDL_FALSE;  /* Assuming no capture support */
-    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
-    impl->OnlyHasDefaultCaptureDevice = SDL_FALSE;
-
-    /* Initialize the sound processing unit */
-    spu_init();
-    
-    return SDL_TRUE;  /* This audio target is available */
+    SDL_Log("Dreamcast SDL2 audio driver initialized.");
+    return SDL_TRUE;
 }
 
 AudioBootStrap DREAMCASTAUD_bootstrap = {
     "dcaudio", "SDL2 Dreamcast audio driver", DREAMCASTAUD_Init, SDL_FALSE
 };
 
-
-// void DREAMCASTAUD_ResumeDevices(void)
-// {
-//     /* Handle resuming audio devices */
-//     if (audioDevice && audioDevice->hidden) {
-//         SDL_UnlockMutex(audioDevice->mixer_lock);
-//     }
-
-//     if (captureDevice && captureDevice->hidden) {
-//         SDL_UnlockMutex(captureDevice->mixer_lock);
-//     }
-// }
-
-static __inline__ void SDL_DC_spu_memload_mono(uint32 dst, uint32 *__restrict__ src, size_t size)
-{
-	register uint32 *dat  = (uint32*)(dst + SDL_DC_SPU_RAM_BASE);
-
-	unsigned old1,old2;
-	SDL_DC_G2_LOCK(old1, old2);
-	size >>= 5;
-	while(size--) {
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-		SDL_DC_G2_WRITE_32(dat++,*src++);
-	}
-	SDL_DC_G2_UNLOCK(old1, old2);
-	SDL_DC_G2_FIFO_WAIT();
-}
-
-
-static __inline__ void SDL_DC_spu_memload_stereo8(int leftpos, int rightpos, void* __restrict__ src0, size_t size)
-{
-	uint8 *src = src0;
-	uint32 *left  = (uint32*)(leftpos + SDL_DC_SPU_RAM_BASE);
-	uint32 *right = (uint32*)(rightpos+ SDL_DC_SPU_RAM_BASE);
-	unsigned old1,old2;
-	SDL_DC_G2_LOCK(old1, old2);
-	size >>= 5;
-	while(size--) {
-		register unsigned lval,rval;
-
-		lval = *src++; rval = *src++;
-		lval|= (*src++)<<8; rval|= (*src++)<<8;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		lval|= (*src++)<<24; rval|= (*src++)<<24;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = *src++; rval = *src++;
-		lval|= (*src++)<<8; rval|= (*src++)<<8;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		lval|= (*src++)<<24; rval|= (*src++)<<24;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = *src++; rval = *src++;
-		lval|= (*src++)<<8; rval|= (*src++)<<8;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		lval|= (*src++)<<24; rval|= (*src++)<<24;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = *src++; rval = *src++;
-		lval|= (*src++)<<8; rval|= (*src++)<<8;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		lval|= (*src++)<<24; rval|= (*src++)<<24;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-	}
-	SDL_DC_G2_UNLOCK(old1, old2);
-	SDL_DC_G2_FIFO_WAIT();
-}
-
-static __inline__ void SDL_DC_spu_memload_stereo16(int leftpos, int rightpos, void* __restrict__ src0, size_t size)
-{
-	uint16 *src = src0;
-	uint32 *left  = (uint32*)(leftpos + SDL_DC_SPU_RAM_BASE);
-	uint32 *right = (uint32*)(rightpos+ SDL_DC_SPU_RAM_BASE);
-	unsigned old1,old2;
-	SDL_DC_G2_LOCK(old1, old2);
-	size >>= 5;
-	while(size--) {
-		register unsigned lval,rval;
-
-		lval = (*src++); rval = *src++;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = (*src++); rval = *src++;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = (*src++); rval = *src++;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-
-		lval = (*src++); rval = *src++;
-		lval|= (*src++)<<16; rval|= (*src++)<<16;
-		SDL_DC_G2_WRITE_32(left++,lval);
-		SDL_DC_G2_WRITE_32(right++,rval);
-	}
-	SDL_DC_G2_UNLOCK(old1, old2);
-	SDL_DC_G2_FIFO_WAIT();
-}
-
-
-
-#else /* SDL_AUDIO_DRIVER_DREAMCAST  not defined */
-
-void DREAMCASTAUD_WaitDevices(void) {}
-
-#endif /* SDL_AUDIO_DRIVER_DREAMCAST*/
-/* vi: set ts=4 sw=4 expandtab: */
+#endif // SDL_AUDIO_DRIVER_DREAMCAST

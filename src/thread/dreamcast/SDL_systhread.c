@@ -67,7 +67,8 @@ int SDL_SYS_CreateThread(SDL_Thread *thread)
 
 void SDL_SYS_SetupThread(const char *name)
 {
-    // Setup thread name or other thread-specific initialization if needed
+    kthread_t * thid = thd_get_current(); // Get the current thread ID
+    thd_set_label(thid, name);
 }
 
 Uint32 SDL_ThreadID(void)
@@ -86,5 +87,6 @@ void SDL_SYS_KillThread(SDL_Thread *thread)
 }
 
 int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority) {
-    return 0;
+    kthread_t * thid = thd_get_current(); // Get the current thread ID
+    thd_set_prio(thid, priority); // Set a higher priority
 }

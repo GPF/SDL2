@@ -25,20 +25,22 @@
 
 #include "../SDL_sysaudio.h"
 #include <stdint.h>  // For uint32_t
-
+#include <dc/sound/stream.h>
 /* Hidden "this" pointer for the audio functions */
 #define _THIS SDL_AudioDevice *_this
 
 typedef struct {
-    uint32_t *leftpos;   // Use uint32_t if it's not defined elsewhere
-    uint32_t *rightpos;  // Use uint32_t if it's not defined elsewhere
-    void *mixbuf;
-   //  unsigned int size;
-    unsigned int mixlen;
-    int nextbuf;
-    int playing;
-   //  SDL_AudioSpec *spec; // Add this member to access audio specifications
+    snd_stream_hnd_t stream_handle; // Handle for the audio stream
+    void *buffer;                    // Buffer for audio data
+    unsigned int buffer_offset;      // Offset within the circular buffer
+    unsigned int buffer_size;        // Size of the buffer
+    unsigned int mixlen;             // Length of the buffer
+    int playing;                    // Flag indicating if playback is active
+    SDL_AudioFormat format;          // Audio format used
+    int frequency;                   // Frequency of the audio stream
+    char *status;                    // Status message or error string
 } SDL_PrivateAudioData;
+
 
 #endif /* SDL_dreamcastaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */

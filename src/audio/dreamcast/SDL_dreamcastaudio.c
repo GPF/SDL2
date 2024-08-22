@@ -13,10 +13,11 @@
 
 static SDL_AudioDevice *audioDevice = NULL;   // Pointer to the active audio output device
 static SDL_AudioDevice *captureDevice = NULL; // Pointer to the active audio capture device
+
 static void DREAMCASTAUD_WaitDevices(_THIS);
 
-// Function to get the device buffer
-static void *DREAMCASTAUD_GetDeviceBuf(_THIS) {
+// // Function to get the device buffer
+static Uint8 *DREAMCASTAUD_GetDeviceBuf(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
 
     // Check if the buffer is valid
@@ -31,9 +32,12 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
     SDL_AudioDevice *device = (SDL_AudioDevice *)audioDevice;
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
     void *buffer = DREAMCASTAUD_GetDeviceBuf(device);
+    int buffer_size = device->spec.size;
+    int available_data = buffer_size - hidden->buffer_offset;
+    int bytes_to_copy = SDL_min(req, available_data);
 
     SDL_Log("stream_callback called with %d samples requested", req);
-    SDL_Log("Buffer size: %d bytes, Write offset: %d bytes", device->spec.size, hidden->buffer_offset);
+    SDL_Log("Buffer size: %ld bytes, Write offset: %d bytes", (Uint32)device->spec.size, hidden->buffer_offset);
 
     if (!buffer) {
         SDL_Log("Buffer is NULL.");
@@ -41,9 +45,7 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
         return NULL;
     }
 
-    int buffer_size = device->spec.size;
-    int available_data = buffer_size - hidden->buffer_offset;
-    int bytes_to_copy = SDL_min(req, available_data);
+
 
     if (available_data >= req) {
         // Copy available data to buffer
@@ -145,7 +147,7 @@ static void DREAMCASTAUD_PlayDevice(_THIS) {
     }
 
     if (!hidden->playing) {
-        SDL_Log("DREAMCASTAUD_PlayDevice called");
+        
         SDL_Log("Format: %d, Channels: %d, Frequency: %d", _this->spec.format, channels, frequency);
         snd_stream_reinit(hidden->stream_handle, stream_callback);
         snd_stream_volume(hidden->stream_handle, 255); // Max volume
@@ -167,13 +169,15 @@ static void DREAMCASTAUD_PlayDevice(_THIS) {
 
         hidden->playing = SDL_TRUE;
     } else {
-        while (snd_stream_poll(hidden->stream_handle) < 0) {
-            thd_pass();
-        }
+        // while (snd_stream_poll(hidden->stream_handle) < 0) {
+        //     thd_pass();
+        // }
+            SDL_Log("DREAMCASTAUD_PlayDevice called");
+        snd_stream_poll(hidden->stream_handle);
+
     }
 }
 
-// Wait for the audio devices
 // Wait for the audio devices
 static void DREAMCASTAUD_WaitDevices(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
@@ -223,14 +227,14 @@ static void DREAMCASTAUD_ThreadInit(_THIS) {
 // Initialize the SDL2 Dreamcast audio driver
 static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl) {
     /* Set the function pointers */
-    // impl->ThreadInit = DREAMCASTAUD_ThreadInit;
+    impl->ThreadInit = DREAMCASTAUD_ThreadInit;
     impl->ThreadDeinit = NULL; // Implement if needed
     impl->OpenDevice = DREAMCASTAUD_OpenDevice;
     impl->PlayDevice = DREAMCASTAUD_PlayDevice;
     impl->WaitDevice = DREAMCASTAUD_WaitDevices;
     impl->CloseDevice = DREAMCASTAUD_CloseDevice;
     impl->GetDeviceBuf = DREAMCASTAUD_GetDeviceBuf;
-
+    impl->ProvidesOwnCallbackThread = SDL_FALSE;
     SDL_Log("Dreamcast SDL2 audio driver initialized.");
     return SDL_TRUE;
 }

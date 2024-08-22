@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         quit(1);
     }
-    wave.spec.freq= 22150;
+    wave.spec.freq= 22050;
     wave.spec.format    = AUDIO_S16LSB;
     wave.spec.channels = 1;
     wave.spec.samples = 4096;

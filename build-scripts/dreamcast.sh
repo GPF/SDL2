@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the path to the Dreamcast toolchain file
-export KOS_CMAKE_TOOLCHAIN="/opt/toolchains/dc/kos/utils/cmake/dreamcast.toolchain.cmake"
+#export KOS_CMAKE_TOOLCHAIN="/opt/toolchains/dc/kos/utils/cmake/dreamcast.toolchain.cmake"
 
 # Define the source directory and build directory
 SOURCE_DIR="${PWD}/.."

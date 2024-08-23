@@ -2,11 +2,11 @@
 #include <SDL2/SDL.h>
 #include <GL/gl.h>
 #include <GL/glkos.h>
-#define BMP_PATH "/rd/Troy2024.bmp"
 
 #include <stdio.h>
-extern uint8 romdisk[];
-KOS_INIT_ROMDISK(romdisk);
+
+#define BMP_PATH "/rd/Troy2024.bmp"
+
 // Function to load BMP into an OpenGL texture (Dreamcast specific)
 GLuint LoadBMPTexture(const char *filename) {
     GLuint textureID;

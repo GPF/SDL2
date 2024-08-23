@@ -6,9 +6,6 @@
 #endif
 #include <SDL2/SDL.h>
 
-extern uint8 romdisk[];
-KOS_INIT_ROMDISK(romdisk);
-
 static void handle_joystick_events(SDL_Joystick *joystick) {
     if (!joystick) return;
 

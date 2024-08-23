@@ -21,9 +21,6 @@
 /* Number of pixels for one step of the sprite */
 #define SPRITE_STEP     5
 
-extern uint8 romdisk[];
-KOS_INIT_ROMDISK(romdisk);
-
 void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *position, int *gameover) {
     // Check the D-pad hat position
     Sint16 hat = SDL_JoystickGetHat(joystick, 0); // Assuming using the first hat
@@ -48,9 +45,10 @@ void HandleJoystickInput(SDL_Joystick *joystick, int *currDirection, SDL_Rect *p
     }
 }
 
+KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
+
 int main(int argc, char* argv[])
 {
-KOS_INIT_FLAGS(INIT_DEFAULT | INIT_MALLOCSTATS);
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *spriteTexture;

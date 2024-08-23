@@ -89,4 +89,6 @@ void SDL_SYS_KillThread(SDL_Thread *thread)
 int SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority) {
     kthread_t * thid = thd_get_current(); // Get the current thread ID
     thd_set_prio(thid, priority); // Set a higher priority
+
+    return 0;
 }

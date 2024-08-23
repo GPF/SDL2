@@ -18,14 +18,14 @@ Uint32 waittime = 1000.0f/FPS;
 Uint32 framestarttime = 0;
 Sint32 delaytime;
 #define BMP_PATH "/rd/NeHe.bmp"
-extern uint8 romdisk[];
-KOS_INIT_ROMDISK(romdisk);
+
 /* floats for x rotation, y rotation, z rotation */
 float xrot, yrot, zrot;
 
 /* storage for one texture  */
 GLuint texture[1];
-    SDL_Window *window;
+SDL_Window *window;
+
 SDL_Surface* LoadBMP(char *filename) {
     Uint8 *rowhi, *rowlo;
     Uint8 *tmpbuf, tmpch;

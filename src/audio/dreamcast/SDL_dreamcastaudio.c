@@ -169,11 +169,10 @@ static void DREAMCASTAUD_PlayDevice(_THIS) {
 
         hidden->playing = SDL_TRUE;
     } else {
-        // while (snd_stream_poll(hidden->stream_handle) < 0) {
-        //     thd_pass();
-        // }
             SDL_Log("DREAMCASTAUD_PlayDevice called");
-        snd_stream_poll(hidden->stream_handle);
+            // while (snd_stream_poll(hidden->stream_handle) < 0) {
+            //     thd_pass();
+            // }
 
     }
 }
@@ -183,7 +182,10 @@ static void DREAMCASTAUD_WaitDevices(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
     if (hidden->playing) {
         SDL_Log("DREAMCASTAUD_WaitDevices called");
-        snd_stream_poll(hidden->stream_handle);
+        while (snd_stream_poll(hidden->stream_handle) < 0) {
+            thd_sleep(50);
+        }
+		
     } 
 //     else {
 //         thd_pass(); // This will make the thread yield until audio is playing

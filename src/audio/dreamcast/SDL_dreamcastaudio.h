@@ -23,25 +23,20 @@
 #ifndef SDL_dreamcastaudio_h_
 #define SDL_dreamcastaudio_h_
 
+#include "SDL_audio.h"
 #include "../SDL_sysaudio.h"
+#include "SDL_mutex.h"
 #include <stdint.h>  // For uint32_t
 #include <dc/sound/stream.h>
+
 /* Hidden "this" pointer for the audio functions */
 #define _THIS SDL_AudioDevice *_this
 
 typedef struct {
-    snd_stream_hnd_t stream_handle; // Handle for the audio stream
+    snd_stream_hnd_t stream_handle;  // Handle for the audio stream
     void *buffer;                    // Buffer for audio data
-    unsigned int buffer_offset;      // Offset within the circular buffer
-    unsigned int buffer_size;        // Size of the buffer
-    unsigned int mixlen;             // Length of the buffer
-    int playing;                    // Flag indicating if playback is active
-    SDL_AudioFormat format;          // Audio format used
-    int frequency;                   // Frequency of the audio stream
-    char *status;                    // Status message or error string
 } SDL_PrivateAudioData;
 
 
 #endif /* SDL_dreamcastaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */
-

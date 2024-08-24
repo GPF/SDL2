@@ -63,7 +63,7 @@ void SDLCALL fillerup(void *unused, Uint8 *stream, int len) {
     Uint8 *waveptr = wave.sound + wave.soundpos;
     int waveleft = wave.soundlen - wave.soundpos;
 
-    SDL_Log("fillerup called, len: %d", len);
+    // SDL_Log("fillerup called, len: %d", len);
 
     while (waveleft <= len) {
         SDL_memcpy(stream, waveptr, waveleft);
@@ -125,10 +125,10 @@ int main(int argc, char *argv[]) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         quit(1);
     }
-    wave.spec.freq= 22050;
-    wave.spec.format    = AUDIO_S16LSB;
-    wave.spec.channels = 1;
-    wave.spec.samples = 4096;
+    // wave.spec.freq= 44100;
+    // wave.spec.format    = AUDIO_S8;
+    // wave.spec.channels = 1;
+    // wave.spec.samples = 4096;
     wave.spec.callback = fillerup;
 
     /* Show the list of available drivers */

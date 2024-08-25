@@ -30,7 +30,7 @@
 
 char *SDL_GetBasePath(void)
 {
-    char *base_path = SDL_strdup("/cd");
+    char *base_path = SDL_strdup("/rd/");
     return base_path;
 }
 

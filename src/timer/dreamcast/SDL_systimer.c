@@ -24,6 +24,7 @@
     Sam Lantinga
     slouken@libsdl.org
 */
+#define HAVE_O_CLOEXEC 1
 #include "SDL_config.h"
 
 #ifdef SDL_TIMER_DREAMCAST

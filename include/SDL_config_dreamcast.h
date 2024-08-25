@@ -34,11 +34,11 @@
 
 /* Enable the DREAMCAST video driver (src/video/dreamcast/\*.c) */
 #define SDL_VIDEO_DRIVER_DREAMCAST 1
-// #define SDL_VIDEO_DRIVER_DUMMY	0
-// #define SDL_VIDEO_DRIVER_OFFSCREEN 0
+#define SDL_VIDEO_DRIVER_DUMMY	0
+#define SDL_VIDEO_DRIVER_OFFSCREEN 0
 
-/* Enable the dummy audio driver (src/audio/dummy/\*.c) */
-#define SDL_AUDIO_DRIVER_DUMMY  1
+/* Enable the dummy audio driver (src/audio/dreamcast/\*.c) */
+#define SDL_AUDIO_DRIVER_DREAMCAST 1
 
 /* Enable the stub joystick driver (src/joystick/dreamcast/\*.c) */
 #define SDL_JOYSTICK_DREAMCAST   1

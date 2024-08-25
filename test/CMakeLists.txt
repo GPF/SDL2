@@ -211,6 +211,16 @@ add_sdl_test_executable(controllermap NEEDS_RESOURCES controllermap.c testutils.
 add_sdl_test_executable(testvulkan testvulkan.c)
 add_sdl_test_executable(testoffscreen testoffscreen.c)
 
+if(DREAMCAST)
+    sdltest_link_librararies(
+        SDL2::SDL2main
+        SDL2::SDL2test
+        SDL2::SDL2-static
+        GL
+        kallisti
+    )
+endif()
+
 if(N3DS)
     sdltest_link_librararies(SDL2::SDL2main)
 endif()
@@ -415,6 +425,48 @@ if(N3DS)
         )
     endforeach()
 endif()
+
+if(DREAMCAST)
+    set(DREAMCAST_APPS
+        ${SDL_TESTS_NEEDS_RESOURCES}
+        # Add other apps here
+    )
+
+    foreach(APP IN LISTS DREAMCAST_APPS)
+        # Set up the resource files for the app
+        if(${APP} STREQUAL "loopwave")
+            set(APP_RESOURCE_FILES "sample.wav")
+        elseif(${APP} STREQUAL "loopwavequeue")  # Repeat for other apps
+            set(APP_RESOURCE_FILES "sample.wav")
+        elseif(${APP} STREQUAL "testspriteminimal")  # Repeat for other apps
+            set(APP_RESOURCE_FILES "icon.bmp")           
+        endif()
+
+        if(APP_RESOURCE_FILES)
+            # Set up romdisk directory for the app
+            set(ROMDISK_DIR "${CMAKE_CURRENT_BINARY_DIR}/romdisk_${APP}")
+            
+            # Ensure resources directory exists
+            file(MAKE_DIRECTORY "${ROMDISK_DIR}")
+
+            # Copy resource files to the romdisk directory
+            foreach(RESOURCE_FILE ${APP_RESOURCE_FILES})
+                file(COPY ${RESOURCE_FILE} DESTINATION "${ROMDISK_DIR}")
+            endforeach()
+
+            # Use kos_add_romdisk function from KOS Dreamcast CMake utilities
+            kos_add_romdisk(${APP} "${ROMDISK_DIR}")
+        else()
+            message(WARNING "App ${APP} does not have resource files defined!")
+        endif()
+
+    endforeach()
+endif()
+
+
+
+
+
 
 if(RISCOS)
     set(SDL_TEST_EXECUTABLES_AIF)

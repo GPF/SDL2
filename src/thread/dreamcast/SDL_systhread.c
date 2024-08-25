@@ -27,7 +27,6 @@
 #include "SDL_config.h"
 
 /* Thread management routines for SDL */
-#define HAVE_O_CLOEXEC 1
 #include "SDL_error.h"
 #include "SDL_thread.h"
 #include "../SDL_thread_c.h"

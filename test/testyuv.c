@@ -324,8 +324,14 @@ int main(int argc, char **argv)
     if (argv[arg]) {
         filename = argv[arg];
     } else {
-        filename = "testyuv.bmp";
+#ifdef __DREAMCAST__        
+        filename = "/rd/testyuv.bmp";
+#else
+        filename = "testyuv.bmp";        
+#endif
     }
+    
+
     original = SDL_ConvertSurfaceFormat(SDL_LoadBMP(filename), SDL_PIXELFORMAT_RGB24, 0);
     if (!original) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());

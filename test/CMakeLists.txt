@@ -216,10 +216,14 @@ if(DREAMCAST)
         SDL2::SDL2main
         SDL2::SDL2test
         SDL2::SDL2-static
-        GL
         kallisti
     )
+    
+    if(OPENGL_FOUND)
+        sdltest_link_librararies(GL)
+    endif()
 endif()
+
 
 if(N3DS)
     sdltest_link_librararies(SDL2::SDL2main)
@@ -434,28 +438,32 @@ if(DREAMCAST)
 
     foreach(APP IN LISTS DREAMCAST_APPS)
         # Set up the resource files for the app
-        if(${APP} STREQUAL "loopwave")
-            set(APP_RESOURCE_FILES "sample.wav")
-        elseif(${APP} STREQUAL "loopwavequeue")  # Repeat for other apps
-            set(APP_RESOURCE_FILES "sample.wav")
-        elseif(${APP} STREQUAL "testspriteminimal")  # Repeat for other apps
-            set(APP_RESOURCE_FILES "icon.bmp")           
-        endif()
+        if(${APP} STREQUAL "testspriteminimal" OR ${APP} STREQUAL "testviewport" OR ${APP} STREQUAL "testshader" OR ${APP} STREQUAL "testoverlay2" OR ${APP} STREQUAL "teststreaming" OR ${APP} STREQUAL "testiconv" OR ${APP} STREQUAL "testime")
+        set(APP_RESOURCE_FILES "icon.bmp")
+    elseif(${APP} STREQUAL "testrendercopyex" OR ${APP} STREQUAL "testrendertarget")
+        set(APP_RESOURCE_FILES "sample.bmp" "icon.bmp")
+    elseif(${APP} STREQUAL "loopwavequeue" OR ${APP} STREQUAL "loopwave")
+        set(APP_RESOURCE_FILES "sample.wav")
+    elseif(${APP} STREQUAL "controllermap" OR ${APP} STREQUAL "testgamecontroller")
+        set(APP_RESOURCE_FILES "axis.bmp" "button.bmp" "controllermap_back.bmp" "controllermap.bmp")
+    elseif(${APP} STREQUAL "testyuv")
+        set(APP_RESOURCE_FILES "testyuv.bmp")
+    endif()
 
         if(APP_RESOURCE_FILES)
             # Set up romdisk directory for the app
-            set(ROMDISK_DIR "${CMAKE_CURRENT_BINARY_DIR}/romdisk_${APP}")
+            set(KOS_ROMDISK_DIR "${CMAKE_CURRENT_BINARY_DIR}/romdisk_${APP}")
             
             # Ensure resources directory exists
-            file(MAKE_DIRECTORY "${ROMDISK_DIR}")
+            file(MAKE_DIRECTORY "${KOS_ROMDISK_DIR}")
 
             # Copy resource files to the romdisk directory
             foreach(RESOURCE_FILE ${APP_RESOURCE_FILES})
-                file(COPY ${RESOURCE_FILE} DESTINATION "${ROMDISK_DIR}")
+                file(COPY ${RESOURCE_FILE} DESTINATION "${KOS_ROMDISK_DIR}")
             endforeach()
 
             # Use kos_add_romdisk function from KOS Dreamcast CMake utilities
-            kos_add_romdisk(${APP} "${ROMDISK_DIR}")
+            kos_add_romdisk(${APP} "${KOS_ROMDISK_DIR}" ${APP})
         else()
             message(WARNING "App ${APP} does not have resource files defined!")
         endif()

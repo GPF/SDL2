@@ -107,7 +107,11 @@ int main(int argc, char *argv[])
         quit(2);
     }
 
-    sprite = LoadTexture(renderer, "icon.bmp", SDL_TRUE, &sprite_w, &sprite_h);
+#ifdef __DREAMCAST__    
+   sprite = LoadTexture(renderer, GetResourceFilename(NULL,"icon.bmp"), SDL_TRUE, &sprite_w, &sprite_h);
+#else
+   sprite = LoadTexture(renderer, "icon.bmp", SDL_TRUE, &sprite_w, &sprite_h);
+#endif
 
     if (!sprite) {
         quit(2);

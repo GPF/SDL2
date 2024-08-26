@@ -2672,19 +2672,26 @@ elseif(DREAMCAST)
   endif()
 
   if(SDL_THREADS)
-    set(SDL_THREAD_DREAMCAST 1)
-    if(SDL_THREAD_DREAMCAST)
+  set(SDL_THREAD_DREAMCAST 1)
+
+  # Use pthreads if SDL_PTHREADS is ON
+  if(SDL_PTHREADS)
+      set(SDL_THREAD_PTHREAD 1)
+      CheckPTHREAD()
+      set(SDL_THREAD_DREAMCAST 0)
+  endif()
+
+  if(SDL_THREAD_DREAMCAST)
       file(GLOB DREAMCAST_THREAD_SOURCES ${SDL2_SOURCE_DIR}/src/thread/dreamcast/*.c)
       list(APPEND SOURCE_FILES ${DREAMCAST_THREAD_SOURCES}
       ${SDL2_SOURCE_DIR}/src/thread/generic/SDL_systls.c)
-    elseif()
-      set(SDL_THREAD_PTHREAD 1)
-      set(SDL_THREAD_DREAMCAST 0)
-      set(SDL_PTHREADS ON)
-      CheckPTHREAD()
-    endif()
-    set(HAVE_SDL_THREADS TRUE)
   endif()
+
+  if(SDL_THREAD_PTHREAD OR SDL_THREAD_DREAMCAST)
+      set(HAVE_SDL_THREADS TRUE)
+  endif()
+endif()
+
 
   if(SDL_TIMERS)
     set(SDL_TIMER_DREAMCAST 1)
@@ -3367,10 +3374,6 @@ if(SDL_CCACHE AND NOT CMAKE_VERSION VERSION_LESS 3.4)
   endif()
 else()
   set(HAVE_CCACHE OFF)
-endif()
-
-if(DREAMCAST)
-set(SDL_TESTS ON)
 endif()
 
 if(SDL_TESTS)

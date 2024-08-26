@@ -474,8 +474,11 @@ int main(int argc, char **argv)
         SDL_Quit();
         exit(2);
     }
-
+#ifdef __DREAMCAST__    
+    surface = SDL_LoadBMP("/rd/icon.bmp");
+#else
     surface = SDL_LoadBMP("icon.bmp");
+    #endif
     if (!surface) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to load icon.bmp: %s\n", SDL_GetError());
         SDL_Quit();

@@ -27,7 +27,8 @@
 
 #define HAVE_O_CLOEXEC 1
 /* Enable the DREAMCAST thread support (src/thread/dreamcast/\*.c) */
-#define SDL_THREAD_DREAMCAST 1
+#define SDL_THREAD_DREAMCAST 0
+#define SDL_PTHREADS 1
 
 /* Enable the DREAMCAST timer support (src/timer/dreamcast/\*.c) */
 #define SDL_TIMER_DREAMCAST  1

@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
     SDL_Event event;
     int running = 1;
 
+    
     printf("SDL2_INIT_VIDEO\n");
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
@@ -49,10 +50,35 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
         return 1;  
     } 
- 
+     printf("Select renderer\n");
+    // Loop through the available renderers
+    int render_driver_index = -1;
+    int num_render_drivers = SDL_GetNumRenderDrivers();
+    for (int i = 0; i < num_render_drivers; i++) {
+        SDL_RendererInfo info;
+        if (SDL_GetRenderDriverInfo(i, &info) == 0) {
+            printf("Renderer driver %d: %s\n", i, info.name);
+            if (strcmp(info.name, "software") == 0) {
+                render_driver_index = i;
+                break;
+            }
+        }
+    }
+
+    if (render_driver_index == -1) {
+        printf("Software renderer not found!\n");
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
     printf("SDL_CreateRenderer\n"); 
+
+    // Set SDL hint for the renderer
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
+
     // Create a renderer
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);    
     if (!renderer) { 
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -64,7 +90,7 @@ int main(int argc, char *argv[]) {
     SDL_RWops *rw = SDL_RWFromFile(BMP_PATH, "rb");
     if (!rw) {  
         printf("Unable to open BMP file! SDL_Error: %s\n", SDL_GetError());
-        SDL_DestroyRenderer(renderer);
+        SDL_DestroyRenderer(renderer); 
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 1;

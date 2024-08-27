@@ -72,10 +72,10 @@ int DC_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 flags) 
     DC_RenderData *data;
     int pixelformat;
     
-    if (flags == 0) {
-        SDL_Log("DC_CreateRenderer: No specific flags provided, assuming software acceleration.");
-        return -1;
-    }
+    // if (flags == 0) {
+    //     SDL_Log("DC_CreateRenderer: No specific flags provided, assuming software acceleration.");
+    //     return -1;
+    // }
 
     data = (DC_RenderData *)SDL_calloc(1, sizeof(*data));
     if (!data) {

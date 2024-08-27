@@ -1,7 +1,7 @@
 #ifndef SDL_RENDER_DREAMCAST_PVR_H
 #define SDL_RENDER_DREAMCAST_PVR_H
 
-#include "SDL_sysrender.h"
+#include "../SDL_sysrender.h"
 #include <dc/pvr.h>
 
 

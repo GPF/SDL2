@@ -72,6 +72,11 @@ int DC_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 flags) 
     DC_RenderData *data;
     int pixelformat;
     
+    if (flags == 0) {
+        SDL_Log("DC_CreateRenderer: No specific flags provided, assuming software acceleration.");
+        return -1;
+    }
+
     data = (DC_RenderData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
         return SDL_OutOfMemory();
@@ -180,11 +185,32 @@ int DC_SetTextureScaleMode(SDL_Renderer *renderer, SDL_Texture *texture, SDL_Sca
 }
 
 int DC_SetRenderTarget(SDL_Renderer *renderer, SDL_Texture *texture) {
-    // Stub: Implement setting the render target
-    (void)renderer; // Avoid unused parameter warning
-    (void)texture;
-    return SDL_Unsupported(); // Return an appropriate error code or handle it as needed
+    DC_RenderData *data = (DC_RenderData *)renderer->driverdata;
+
+    // If texture is NULL, set the render target back to the screen (default)
+    if (texture == NULL) {
+        data->boundTarget = NULL;
+        data->frontbuffer = vram_l; // Restore the front buffer to the screen's VRAM
+        return 0;
+    }
+
+    // Ensure the texture is created with the appropriate access mode
+    if (!(texture->access & SDL_TEXTUREACCESS_TARGET)) {
+        return SDL_SetError("Texture not created with SDL_TEXTUREACCESS_TARGET");
+    }
+
+    // Set the render target to the texture
+    data->boundTarget = texture;
+
+    // Re-point the front buffer to the texture's VRAM
+    pvr_ptr_t texture_mem = *((pvr_ptr_t *)texture->driverdata);
+    data->frontbuffer = texture_mem; // Now rendering will be redirected to this texture
+
+    // You may need to adjust the PVR settings here if required by Dreamcast's PVR architecture.
+
+    return 0;
 }
+
 
 int DC_RenderPresent(SDL_Renderer *renderer) {
     DC_RenderData *data = (DC_RenderData *)renderer->driverdata;

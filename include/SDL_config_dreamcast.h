@@ -35,6 +35,7 @@
 
 /* Enable the DREAMCAST video driver (src/video/dreamcast/\*.c) */
 #define SDL_VIDEO_DRIVER_DREAMCAST 1
+#define SDL_VIDEO_RENDER_DREAMCAST_PVR 1
 #define SDL_VIDEO_DRIVER_DUMMY	0
 #define SDL_VIDEO_DRIVER_OFFSCREEN 0
 

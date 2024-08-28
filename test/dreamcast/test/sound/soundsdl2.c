@@ -5,7 +5,7 @@
 
 #ifdef DREAMCAST
 #include "kos.h"
-#define WAV_PATH "/rd/sample.wav"
+#define WAV_PATH "/rd/001_hazard.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else

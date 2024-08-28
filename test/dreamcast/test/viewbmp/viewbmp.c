@@ -73,10 +73,11 @@ int main(int argc, char *argv[]) {
     }
     printf("SDL_CreateRenderer\n"); 
 
-    // Set SDL hint for the renderer
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
+
 
     // Create a renderer
+    // Set SDL hint for the renderer
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);    
     if (!renderer) { 

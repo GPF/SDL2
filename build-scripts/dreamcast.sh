@@ -57,6 +57,7 @@ else
 fi
 # Run CMake to configure the project with the selected options
 cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" \
+      -G "Unix Makefiles" \
       $CMAKE_OPTS \
       "$SOURCE_DIR"
 # Build the project

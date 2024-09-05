@@ -2709,8 +2709,8 @@ endif()
 
   if(SDL_VIDEO)
     set(SDL_VIDEO_DRIVER_DREAMCAST 1)
-    set(SDL_VIDEO_RENDER_DREAMCAST_PVR 1)
-    file(GLOB DREAMCAST_VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/dreamcast/*.c ${SDL2_SOURCE_DIR}/src/render/dreamcast/*.c)
+    #set(SDL_VIDEO_RENDER_DREAMCAST_PVR 1)
+    file(GLOB DREAMCAST_VIDEO_SOURCES ${SDL2_SOURCE_DIR}/src/video/dreamcast/*.c) # ${SDL2_SOURCE_DIR}/src/render/dreamcast/*.c)
     list(APPEND SOURCE_FILES ${DREAMCAST_VIDEO_SOURCES})
     set(HAVE_SDL_VIDEO TRUE)
 

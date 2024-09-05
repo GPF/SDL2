@@ -44,6 +44,10 @@
 #include <kernel.h>
 #endif
 
+#if defined(__DREAMCAST__)
+#define SDL_ATOMIC_DISABLED 1
+#endif
+
 #if !defined(HAVE_GCC_ATOMICS) && defined(__MACOSX__)
 #include <libkern/OSAtomic.h>
 #endif

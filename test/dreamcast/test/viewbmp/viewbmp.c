@@ -50,27 +50,27 @@ int main(int argc, char *argv[]) {
         SDL_Quit();
         return 1;  
     } 
-     printf("Select renderer\n");
-    // Loop through the available renderers
-    int render_driver_index = -1;
-    int num_render_drivers = SDL_GetNumRenderDrivers();
-    for (int i = 0; i < num_render_drivers; i++) {
-        SDL_RendererInfo info;
-        if (SDL_GetRenderDriverInfo(i, &info) == 0) {
-            printf("Renderer driver %d: %s\n", i, info.name);
-            if (strcmp(info.name, "software") == 0) {
-                render_driver_index = i;
-                break;
-            }
-        }
-    }
+    //  printf("Select renderer\n");
+    // // Loop through the available renderers
+    // int render_driver_index = -1;
+    // int num_render_drivers = SDL_GetNumRenderDrivers();
+    // for (int i = 0; i < num_render_drivers; i++) {
+    //     SDL_RendererInfo info;
+    //     if (SDL_GetRenderDriverInfo(i, &info) == 0) {
+    //         printf("Renderer driver %d: %s\n", i, info.name);
+    //         if (strcmp(info.name, "software") == 0) {
+    //             render_driver_index = i;
+    //             break;
+    //         }
+    //     }
+    // }
 
-    if (render_driver_index == -1) {
-        printf("Software renderer not found!\n");
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
+    // if (render_driver_index == -1) {
+    //     printf("Software renderer not found!\n");
+    //     SDL_DestroyWindow(window);
+    //     SDL_Quit();
+    //     return 1;
+    // }
     printf("SDL_CreateRenderer\n"); 
 
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     // Set SDL hint for the renderer
     SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
-    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);    
+    // renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED);    
     if (!renderer) { 
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -109,9 +109,17 @@ int main(int argc, char *argv[]) {
     }
     printf("SDL_LoadBMP_RW\n"); 
 
+// Convert the surface to ARGB8888 format
+SDL_Surface *converted_surface = SDL_ConvertSurfaceFormat(image_surface, SDL_PIXELFORMAT_RGB888, 0);
+if (!converted_surface) {
+    printf("Failed to convert surface format: %s\n", SDL_GetError());
+    SDL_FreeSurface(image_surface);
+    return -1;
+}
+
     // Create texture from surface
-    texture = SDL_CreateTextureFromSurface(renderer, image_surface);
-    SDL_FreeSurface(image_surface); // Free the surface after creating the texture
+    texture = SDL_CreateTextureFromSurface(renderer, converted_surface);
+    SDL_FreeSurface(converted_surface); // Free the surface after creating the texture
     if (!texture) {
         printf("Unable to create texture from surface! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyRenderer(renderer);

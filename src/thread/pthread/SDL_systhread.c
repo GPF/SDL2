@@ -48,6 +48,11 @@
 #endif
 #endif
 
+#ifdef __DREAMCAST__)
+int pthread_getschedparam(pthread_t thread, int *policy, struct sched_param *param);
+int pthread_setschedparam(pthread_t thread, int policy, struct sched_param *param);
+#endif
+
 #include "SDL_thread.h"
 #include "../SDL_thread_c.h"
 #include "../SDL_systhread.h"

@@ -45,7 +45,7 @@
 #endif
 
 #if defined(__DREAMCAST__)
-#define SDL_ATOMIC_DISABLED 1
+#include <arch/spinlock.h>
 #endif
 
 #if !defined(HAVE_GCC_ATOMICS) && defined(__MACOSX__)
@@ -167,6 +167,15 @@ SDL_bool SDL_AtomicTryLock(SDL_SpinLock *lock)
         EIntr();
     }
     return res;
+#elif defined(__DREAMCAST__)
+#ifdef __DREAMCAST__
+    if (spinlock_trylock(lock)) {
+        return SDL_TRUE;
+    } else {
+        return SDL_FALSE;
+    }
+#endif
+
 #else
 #error Please implement for your platform.
     return SDL_FALSE;

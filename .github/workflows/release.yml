@@ -37,8 +37,9 @@ jobs:
         shell: bash
         run: |
           python build-scripts/build-release.py \
-            --actions source \
+            --create source \
             --commit ${{ inputs.commit }} \
+            --project SDL2 \
             --root "${{ github.workspace }}/SDL" \
             --github \
             --debug
@@ -92,7 +93,7 @@ jobs:
       - name: 'Set up Python'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
       - name: 'Fetch build-release.py'
         uses: actions/checkout@v4
         with:
@@ -113,8 +114,9 @@ jobs:
         shell: bash
         run: |
           python build-scripts/build-release.py \
-            --actions dmg \
+            --create framework \
             --commit ${{ inputs.commit }} \
+            --project SDL2 \
             --root "${{ steps.tar.outputs.path }}" \
             --github \
             --debug
@@ -190,7 +192,7 @@ jobs:
       - name: 'Set up Python'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
       - name: 'Fetch build-release.py'
         uses: actions/checkout@v4
         with:
@@ -211,8 +213,9 @@ jobs:
         id: releaser
         run: |
           python build-scripts/build-release.py     `
-            --actions msvc                         `
+            --create win32                          `
             --commit ${{ inputs.commit }}           `
+            --project SDL2                          `
             --root "${{ steps.zip.outputs.path }}"  `
             --github                                `
             --debug
@@ -307,7 +310,7 @@ jobs:
       - name: 'Set up Python'
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
       - name: 'Fetch build-release.py'
         uses: actions/checkout@v4
         with:
@@ -331,8 +334,9 @@ jobs:
         id: releaser
         run: |
           python build-scripts/build-release.py     \
-            --actions mingw                         \
+            --create mingw                          \
             --commit ${{ inputs.commit }}           \
+            --project SDL2                          \
             --root "${{ steps.tar.outputs.path }}"  \
             --github                                \
             --debug
@@ -366,13 +370,12 @@ jobs:
           mkdir -p /tmp/tardir
           tar -C /tmp/tardir -v -x -f "${{ github.workspace }}/${{ needs.src.outputs.src-tar-gz }}"
           echo "path=/tmp/tardir/${{ needs.src.outputs.project }}-${{ needs.src.outputs.version }}" >>$GITHUB_OUTPUT
-      - name: 'Untar and install ${{ needs.mingw.outputs.mingw-devel-tar-gz }}'
+      - name: 'Untar ${{ needs.mingw.outputs.mingw-devel-tar-gz }}'
         id: bin
         run: |
           mkdir -p /tmp/mingw-tardir
           tar -C /tmp/mingw-tardir -v -x -f "${{ github.workspace }}/${{ needs.mingw.outputs.mingw-devel-tar-gz }}"
-          make -C /tmp/mingw-tardir/${{ needs.src.outputs.project }}-${{ needs.src.outputs.version }} cross CROSS_PATH=/tmp/deps-mingw
-          echo "path=/tmp/deps-mingw" >>$GITHUB_OUTPUT
+          echo "path=/tmp/mingw-tardir/${{ needs.src.outputs.project }}-${{ needs.src.outputs.version }}" >>$GITHUB_OUTPUT
       - name: 'CMake (configure + build) i686'
         run: |
           set -e

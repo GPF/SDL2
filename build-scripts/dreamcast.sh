@@ -20,11 +20,15 @@ case $1 in
         --disable-pthreads) ENABLE_PTHREADS=OFF ;;
         clean) 
             echo "Cleaning build directory..."
+            cd "$BUILD_DIR"
+            make clean            
 rm -rf CMakeFiles CMakeCache.txt Makefile
             exit 0
             ;;
         distclean)
             echo "Removing build directory..."
+            cd "$BUILD_DIR"
+            make uninstall
 rm -rf "$BUILD_DIR"
 exit 0
             ;;
@@ -59,9 +63,12 @@ fi
 cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" \
       -G "Unix Makefiles" \
       $CMAKE_OPTS \
+      -DCMAKE_INSTALL_PREFIX=${KOS_BASE}/addons \
+      -DCMAKE_INSTALL_LIBDIR=lib/dreamcast \
+      -DCMAKE_INSTALL_INCLUDEDIR=include/ \
       "$SOURCE_DIR"
 # Build the project
-make
+make install
 
 # Optional: Run tests or other commands here
 # Print a message indicating the build is complete

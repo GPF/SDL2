@@ -25,14 +25,33 @@
 /* Being a null driver, there's no event stream. We just define stubs for
    most of the API. */
 
-#include "../../events/SDL_events_c.h"
-
+#include "SDL_dreamcastevents_c.h"
+#include <dc/maple.h>
+#include <dc/maple/mouse.h>
+#include <dc/maple/keyboard.h>
+#include <stdio.h>
+#include <arch/arch.h>
+#include <arch/timer.h>
+#include <arch/irq.h>
 #include "SDL_dreamcastvideo.h"
 #include "SDL_dreamcastevents_c.h"
+#define MIN_FRAME_UPDATE 16
+
+static __inline__ Uint32 myGetTicks(void)
+{
+	return ((timer_us_gettime64()>>10));
+}
 
 void DREAMCAST_PumpEvents(_THIS)
 {
-    /* do nothing. */
+	// static Uint32 last_time=0;
+	// Uint32 now=myGetTicks();
+	// if (now-last_time>MIN_FRAME_UPDATE)
+	// {
+	// 	keyboard_update();
+	// 	mouse_update();
+	// 	last_time=now;
+	// }
 }
 
 #endif /* SDL_VIDEO_DRIVER_DREAMCAST */

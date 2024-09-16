@@ -48,9 +48,12 @@
 #endif
 #endif
 
-#ifdef __DREAMCAST__)
+#if defined (__DREAMCAST__)
 int pthread_getschedparam(pthread_t thread, int *policy, struct sched_param *param);
 int pthread_setschedparam(pthread_t thread, int policy, struct sched_param *param);
+// int sched_get_priority_min();
+// int sched_get_priority_max();
+// int pthread_sigmask (int, const sigset_t *, sigset_t *);
 #endif
 
 #include "SDL_thread.h"

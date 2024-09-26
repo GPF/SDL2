@@ -31,7 +31,8 @@
 #define SDL_PTHREADS 1
 
 /* Enable the DREAMCAST timer support (src/timer/dreamcast/\*.c) */
-#define SDL_TIMER_DREAMCAST  1
+#define SDL_TIMER_DREAMCAST 0
+#define SDL_TIMER_UNIX 1
 
 /* Enable the DREAMCAST video driver (src/video/dreamcast/\*.c) */
 #define SDL_VIDEO_DRIVER_DREAMCAST 1

@@ -28,6 +28,40 @@
 #include "GL/glu.h"
 #include "GL/glkos.h"
 
+#ifdef __DREAMCAST__
+
+void glRasterPos2i(GLint x, GLint y)
+{
+    // TODO: Implement glRasterPos2i for Dreamcast
+}
+
+void glPointSize(GLfloat size)
+{
+    // TODO: Implement glPointSize for Dreamcast
+}
+
+void glGetPointerv(GLenum pname, void** params)
+{
+    // TODO: Implement glGetPointerv for Dreamcast
+}
+
+void glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const void* pixels)
+{
+    // TODO: Implement glDrawPixels for Dreamcast
+}
+
+void glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
+{
+    // TODO: Implement glBlendFuncSeparate for Dreamcast
+}
+
+void glBlendEquation(GLenum mode)
+{
+    // TODO: Implement glBlendEquation for Dreamcast
+}
+
+#endif
+
 typedef void (*funcptr)();
 const static struct {
     char *name;
@@ -79,7 +113,30 @@ const static struct {
     DEF(glViewport),
     DEF(glShadeModel),
     DEF(glTexEnvf),
-    DEF(glVertex2i)
+    DEF(glVertex2i),
+    DEF(glVertexPointer),
+    DEF(glRectf),
+    DEF(glReadPixels),
+    DEF(glReadBuffer),
+    DEF(glLineWidth),    
+    DEF(glVertex2f),
+    DEF(glGetIntegerv),
+    DEF(glGetFloatv),
+    DEF(glGetError),
+    DEF(glEnableClientState),
+    DEF(glTexCoordPointer),
+    DEF(glVertex3fv),
+    DEF(glDrawArrays),
+    DEF(glDisableClientState),
+    DEF(glDeleteTextures),
+    DEF(glColorPointer),
+    // These next 6 functions are stubbed out above since GLdc doesn't implement them currently
+    DEF(glRasterPos2i),
+    DEF(glPointSize),
+    DEF(glGetPointerv),
+    DEF(glDrawPixels),
+    DEF(glBlendFuncSeparate),
+    DEF(glBlendEquation)
     #undef DEF
 };
 
@@ -175,16 +232,16 @@ int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
     
     // Validate the context
-    if (!glcontext) {
-        SDL_SetError("Invalid OpenGL context");
-        return -1;
-    }
+    // if (!glcontext) {
+    //     SDL_SetError("Invalid OpenGL context");
+    //     return -1;
+    // }
     
     // Check if the window is valid
-    if (!window) {
-        SDL_SetError("Invalid window");
-        return -1;
-    }
+    // if (!window) {
+    //     SDL_SetError("Invalid window");
+    //     return -1;
+    // }
     
     // // Set up the GLdcConfig structure
     // GLdcConfig config;

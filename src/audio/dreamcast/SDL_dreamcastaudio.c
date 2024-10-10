@@ -242,7 +242,7 @@ static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl) {
 }
 
 AudioBootStrap DREAMCASTAUD_bootstrap = {
-    "dcaudio", "SDL Dreamcast Audio Driver",
+    "dcstreamingaudio", "SDL Dreamcast Streaming Audio Driver",
     DREAMCASTAUD_Init, SDL_FALSE
 };
 

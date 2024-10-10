@@ -9,11 +9,13 @@ set(SDL_TEST_EXECUTABLES)
 set(SDL_TESTS_NONINTERACTIVE)
 set(SDL_TESTS_NEEDS_RESOURCES)
 
+option(SDLTEST_TRACKMEM "Run tests with --trackmem" OFF)
+
 if(WIN32 AND NOT WINDOWS_STORE)
     option(SDLTEST_PROCDUMP "Run tests using sdlprocdump for minidump generation" OFF)
     add_executable(sdlprocdump win32/sdlprocdump.c)
     if(SDLTEST_PROCDUMP)
-        set(CMAKE_TEST_LAUNCHER "$<TARGET_FILE:sdlprocdump>")
+        set(CMAKE_TEST_LAUNCHER "$<TARGET_FILE:sdlprocdump>;--")
     else()
         set_property(TARGET sdlprocdump PROPERTY EXCLUDE_FROM_ALL "1")
     endif()
@@ -34,7 +36,7 @@ macro(sdltest_add_definitions)
 endmacro()
 
 macro(add_sdl_test_executable TARGET)
-    cmake_parse_arguments(AST "NONINTERACTIVE;NEEDS_RESOURCES" "" "" ${ARGN})
+    cmake_parse_arguments(AST "NONINTERACTIVE;NEEDS_RESOURCES;NOTRACKMEM" "" "" ${ARGN})
     list(APPEND SDLTEST_TARGETS ${TARGET})
     if(ANDROID)
         add_library(${TARGET} SHARED ${AST_UNPARSED_ARGUMENTS})
@@ -43,6 +45,7 @@ macro(add_sdl_test_executable TARGET)
     endif()
 
     list(APPEND SDL_TEST_EXECUTABLES ${TARGET})
+    set_property(TARGET ${TARGET} PROPERTY SDL_NOTRACKMEM ${AST_NOTRACKMEM})
     if(AST_NONINTERACTIVE)
         list(APPEND SDL_TESTS_NONINTERACTIVE ${TARGET})
     endif()
@@ -128,7 +131,7 @@ add_sdl_test_executable(testdropfile testdropfile.c)
 add_sdl_test_executable(testerror NONINTERACTIVE testerror.c)
 
 if(LINUX)
-    add_sdl_test_executable(testevdev NONINTERACTIVE testevdev.c)
+    add_sdl_test_executable(testevdev NOTRACKMEM NONINTERACTIVE testevdev.c)
 endif()
 
 add_sdl_test_executable(testfile testfile.c)
@@ -566,9 +569,16 @@ set(TESTS_ENVIRONMENT
 )
 
 foreach(TESTCASE ${SDL_TESTS_NONINTERACTIVE})
+    set(command ${TESTCASE})
+    if(SDLTEST_TRACKMEM)
+        get_property(notrackmem TARGET ${TESTCASE} PROPERTY SDL_NOTRACKMEM)
+        if(NOT notrackmem)
+            list(APPEND command --trackmem)
+        endif()
+    endif()
     add_test(
         NAME ${TESTCASE}
-        COMMAND ${TESTCASE}
+        COMMAND ${command}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     )
     set_tests_properties(${TESTCASE}
@@ -576,6 +586,9 @@ foreach(TESTCASE ${SDL_TESTS_NONINTERACTIVE})
             ENVIRONMENT "${TESTS_ENVIRONMENT}"
             TIMEOUT 10
     )
+    if(NOT notrackmem)
+        set_property(TEST ${TESTCASE} PROPERTY FAIL_REGULAR_EXPRESSION "Total: [0-9]+\\.[0-9]+ Kb in [1-9][0-9]* allocations")
+    endif()
     if(SDL_INSTALL_TESTS)
         set(exe ${TESTCASE})
         set(installedtestsdir "${CMAKE_INSTALL_FULL_LIBEXECDIR}/installed-tests/SDL2")

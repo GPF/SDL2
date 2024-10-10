@@ -35,11 +35,6 @@ void glRasterPos2i(GLint x, GLint y)
     // TODO: Implement glRasterPos2i for Dreamcast
 }
 
-void glPointSize(GLfloat size)
-{
-    // TODO: Implement glPointSize for Dreamcast
-}
-
 void glGetPointerv(GLenum pname, void** params)
 {
     // TODO: Implement glGetPointerv for Dreamcast
@@ -130,9 +125,9 @@ const static struct {
     DEF(glDisableClientState),
     DEF(glDeleteTextures),
     DEF(glColorPointer),
-    // These next 6 functions are stubbed out above since GLdc doesn't implement them currently
+    DEF(glPointSize),    
+    // These next 5 functions are stubbed out above since GLdc doesn't implement them currently
     DEF(glRasterPos2i),
-    DEF(glPointSize),
     DEF(glGetPointerv),
     DEF(glDrawPixels),
     DEF(glBlendFuncSeparate),

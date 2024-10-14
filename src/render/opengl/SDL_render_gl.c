@@ -412,12 +412,35 @@ convert_format(GL_RenderData *renderdata, Uint32 pixel_format,
                GLint *internalFormat, GLenum *format, GLenum *type)
 {
     switch (pixel_format) {
+#ifdef __DREAMCAST__
+    case SDL_PIXELFORMAT_RGB888:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_BYTE;  // Dreamcast-specific handling for RGB888
+        break;
+    case SDL_PIXELFORMAT_RGB565:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_SHORT_5_6_5;  // Dreamcast-specific handling for RGB565
+        break;
+    case SDL_PIXELFORMAT_ARGB1555:
+        *internalFormat = GL_RGBA;
+        *format = GL_RGBA;
+        *type = GL_UNSIGNED_SHORT_5_5_5_1;  // Dreamcast-specific handling for ARGB1555
+        break;
+    case SDL_PIXELFORMAT_ARGB8888:
+        *internalFormat = GL_RGBA;
+        *format = GL_RGBA;
+        *type = GL_UNSIGNED_BYTE;  // Dreamcast-specific handling for ARGB8888
+        break;
+#else
     case SDL_PIXELFORMAT_ARGB8888:
     case SDL_PIXELFORMAT_RGB888:
         *internalFormat = GL_RGBA8;
         *format = GL_BGRA;
         *type = GL_UNSIGNED_INT_8_8_8_8_REV;
         break;
+#endif
     case SDL_PIXELFORMAT_ABGR8888:
     case SDL_PIXELFORMAT_BGR888:
         *internalFormat = GL_RGBA8;

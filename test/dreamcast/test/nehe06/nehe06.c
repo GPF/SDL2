@@ -71,10 +71,16 @@ void LoadGLTextures() {
     glBindTexture(GL_TEXTURE_2D, texture[0]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, 3, image1->w, image1->h, 0, GL_RGB, GL_UNSIGNED_BYTE, image1->pixels);
+
+    // Create an empty texture first
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image1->w, image1->h, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+
+    // Update the texture with the image data
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, image1->w, image1->h, GL_RGB, GL_UNSIGNED_BYTE, image1->pixels);    
 
     SDL_FreeSurface(image1);
 }
+
 
 void InitGL(int Width, int Height) {
     glViewport(0, 0, Width, Height);

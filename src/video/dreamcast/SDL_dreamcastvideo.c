@@ -53,11 +53,25 @@
 #define DREAMCASTVID_DRIVER_EVDEV_NAME "dcevdev"
 
 #include "SDL_dreamcastopengl.h"
+//Custom code for 60Hz
+static int sdl_dc_no_ask_60hz=0;
+static int sdl_dc_default_60hz=0;
+#include "60hz.h"
 
+void SDL_DC_ShowAskHz(SDL_bool value)
+{
+	sdl_dc_no_ask_60hz=!value;
+}
+
+void SDL_DC_Default60Hz(SDL_bool value)
+{
+	sdl_dc_default_60hz=value;
+}
 /* Initialization/Query functions */
 static int DREAMCAST_VideoInit(_THIS);
 static void DREAMCAST_VideoQuit(_THIS);
-
+void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display);
+int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
 #ifdef SDL_INPUT_LINUXEV
 static int evdev = 0;
 static void DREAMCAST_EVDEV_Poll(_THIS);
@@ -108,6 +122,8 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
     device->VideoInit = DREAMCAST_VideoInit;
     device->VideoQuit = DREAMCAST_VideoQuit;
     device->PumpEvents = DREAMCAST_PumpEvents;
+    device->GetDisplayModes = DREAMCAST_GetDisplayModes;
+    device->SetDisplayMode = DREAMCAST_SetDisplayMode;
 #ifdef SDL_INPUT_LINUXEV
     if (evdev) {
         device->PumpEvents = DREAMCAST_EVDEV_Poll;
@@ -152,32 +168,189 @@ static void DREAMCAST_EVDEV_Poll(_THIS)
     SDL_EVDEV_Poll();
 }
 #endif
-
-int DREAMCAST_VideoInit(_THIS)
-{
+int __sdl_dc_is_60hz=0;
+int DREAMCAST_VideoInit(_THIS) {
     SDL_VideoDisplay display;
     SDL_DisplayMode current_mode;
+    int disp_mode;
+    int pixel_mode;
+    int width = 640, height = 480; // Default to 640x480, modify based on requirements
+    int bpp = 32;  // Bits per pixel
+    Uint32 Rmask, Gmask, Bmask;
 
     SDL_zero(current_mode);
 
-    current_mode.w = 640;
-    current_mode.h = 480;
-    current_mode.refresh_rate = 60;
+    // Determine if we are in 60Hz or 50Hz mode based on cable type and region
+    if (!vid_check_cable()) {
+        __sdl_dc_is_60hz = 1; // 60Hz for VGA
+        if (width == 320 && height == 240) disp_mode = DM_320x240_VGA;
+        else if (width == 640 && height == 480) disp_mode = DM_640x480_VGA;
+        else if (width == 768 && height == 480) disp_mode = DM_768x480_PAL_IL;
+        else {
+            SDL_SetError("Couldn't find requested mode in list");
+            return -1;
+        }
+    } else if (flashrom_get_region() != FLASHROM_REGION_US && !sdl_dc_ask_60hz()) {
+        __sdl_dc_is_60hz = 0;
+        if (width == 320 && height == 240) disp_mode = DM_320x240_PAL;
+        else if (width == 640 && height == 480) disp_mode = DM_640x480_PAL_IL;
+        else {
+            SDL_SetError("Couldn't find requested mode in list");
+            return -1;
+        }
+    } else {
+        __sdl_dc_is_60hz = 1; // Default to 60Hz
+        if (width == 320 && height == 240) disp_mode = DM_320x240;
+        else if (width == 640 && height == 480) disp_mode = DM_640x480;
+        else if (width == 768 && height == 480) disp_mode = DM_768x480;
+        else {
+            SDL_SetError("Couldn't find requested mode in list");
+            return -1;
+        }
+    }
 
-    /* 32 bpp for default */
-    current_mode.format = SDL_PIXELFORMAT_RGB888;
+    // Set pixel mode based on bpp
+    switch (bpp) {
+        case 15: // ARGB1555
+            pixel_mode = PM_RGB555;
+            Rmask = 0x00007C00; // 5 bits for Red
+            Gmask = 0x000003E0; // 5 bits for Green
+            Bmask = 0x0000001F; // 5 bits for Blue
+            current_mode.format = SDL_PIXELFORMAT_ARGB1555; // Set the correct format
+            break;
+        case 16: // RGB565
+            pixel_mode = PM_RGB565;
+            Rmask = 0x0000F800;
+            Gmask = 0x000007E0;
+            Bmask = 0x0000001F;
+            current_mode.format = SDL_PIXELFORMAT_RGB565; // Set the correct format
+            break;
+        case 24: // RGB888
+        case 32: // ARGB8888
+            pixel_mode = PM_RGB888;
+            Rmask = 0x00FF0000;
+            Gmask = 0x0000FF00;
+            Bmask = 0x000000FF;
+            current_mode.format = SDL_PIXELFORMAT_RGB888; // Set the correct format
+            break;
+        default:
+            SDL_SetError("Unsupported pixel format");
+            return -1;
+    }
+
+    // Initialize other properties of current_mode as needed
+    current_mode.w = width;
+    current_mode.h = height;
+    current_mode.refresh_rate = (__sdl_dc_is_60hz) ? 60 : 50; // Set refresh rate based on __sdl_dc_is_60hz
     current_mode.driverdata = NULL;
 
     SDL_zero(display);
     display.desktop_mode = current_mode;
     display.current_mode = current_mode;
     display.driverdata = NULL;
-    SDL_AddDisplayMode(&display, &current_mode);
 
+    SDL_AddDisplayMode(&display, &current_mode);
     SDL_AddVideoDisplay(&display, SDL_TRUE);
-        /* Set video mode using KOS */
-    vid_set_mode(DM_640x480_NTSC_IL, PM_RGB888);
-    return 1;
+
+    // Set the mode using KOS
+    vid_set_mode(disp_mode, pixel_mode);
+
+    SDL_Log("SDL2 Dreamcast video initialized.");
+    return 1; // Success
+}
+
+
+void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display) {
+    SDL_DisplayMode mode;
+    int refresh_rate = __sdl_dc_is_60hz ? 60 : 50; // Determine refresh rate based on flag
+
+    // Adding a 320x240 mode in ARGB1555 format
+    SDL_zero(mode);
+    mode.w = 320;
+    mode.h = 240;
+    mode.format = SDL_PIXELFORMAT_ARGB1555; // Change as necessary
+    mode.refresh_rate = refresh_rate; // Use the determined refresh rate
+    SDL_AddDisplayMode(display, &mode);
+
+    // Adding a 640x480 mode in RGB565 format
+    SDL_zero(mode);
+    mode.w = 640;
+    mode.h = 480;
+    mode.format = SDL_PIXELFORMAT_RGB565; // Change as necessary
+    mode.refresh_rate = refresh_rate; // Use the determined refresh rate
+    SDL_AddDisplayMode(display, &mode);
+
+    // Adding a 768x480 mode in RGB565 format
+    SDL_zero(mode);
+    mode.w = 768;
+    mode.h = 480;
+    mode.format = SDL_PIXELFORMAT_RGB565; // Change as necessary
+    mode.refresh_rate = refresh_rate; // Use the determined refresh rate
+    SDL_AddDisplayMode(display, &mode);
+
+    // Adding a 640x480 mode in RGB888 format
+    SDL_zero(mode);
+    mode.w = 640;
+    mode.h = 480;
+    mode.format = SDL_PIXELFORMAT_RGB888; // Change as necessary
+    mode.refresh_rate = refresh_rate; // Use the determined refresh rate
+    SDL_AddDisplayMode(display, &mode);
+
+    // Optionally, you can add more modes depending on your requirements
+    // e.g., 800x600, 1024x768, etc. 
+
+    SDL_Log("Display modes for Dreamcast retrieved successfully.");
+}
+
+int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode) {
+    int pixel_mode;
+    int disp_mode = -1; // Initialize to an invalid value
+
+    // Determine the appropriate display mode based on width and height
+    if (__sdl_dc_is_60hz) {
+        if (mode->w == 320 && mode->h == 240) {
+            disp_mode = DM_320x240; // 60Hz mode
+        } else if (mode->w == 640 && mode->h == 480) {
+            disp_mode = DM_640x480; // 60Hz mode
+        } else if (mode->w == 768 && mode->h == 480) {
+            disp_mode = DM_768x480; // 60Hz mode
+        }
+    } else { // 50Hz
+        if (mode->w == 320 && mode->h == 240) {
+            disp_mode = DM_320x240_PAL; // 50Hz mode
+        } else if (mode->w == 640 && mode->h == 480) {
+            disp_mode = DM_640x480_PAL_IL; // 50Hz mode
+        }
+    }
+
+    // Check if the determined display mode is valid
+    if (disp_mode < 0) {
+        SDL_SetError("Unsupported display mode");
+        return -1;
+    }
+
+    // Determine pixel mode based on the format in the mode
+    switch (mode->format) {
+        case SDL_PIXELFORMAT_ARGB1555:
+            pixel_mode = PM_RGB555; // Use the correct constant
+            break;
+        case SDL_PIXELFORMAT_RGB565:
+            pixel_mode = PM_RGB565; // Keep as is
+            break;
+        case SDL_PIXELFORMAT_RGB888:
+            pixel_mode = PM_RGB888; // Keep as is
+            break;
+        case SDL_PIXELFORMAT_UNKNOWN:
+        default:
+            SDL_SetError("Unsupported pixel format");
+            return -1;
+    }
+
+    // Set the video mode using KOS (no return value handling)
+    vid_set_mode(disp_mode, pixel_mode); // Assuming this function works fine without return checks
+
+    SDL_Log("Display mode set to: %dx%d @ %dHz", mode->w, mode->h, mode->refresh_rate);
+    return 0; // Return success
 }
 
 void DREAMCAST_VideoQuit(_THIS)

@@ -23,7 +23,9 @@
 #include "SDL_dreamcastopengl.h"
 #include "SDL_video.h"
 
+
 #if defined(SDL_VIDEO_DRIVER_DREAMCAST) && defined(SDL_VIDEO_OPENGL)
+#include <kos.h>
 #include "GL/gl.h"
 #include "GL/glu.h"
 #include "GL/glkos.h"
@@ -186,6 +188,8 @@ int DREAMCAST_GL_Initialize(_THIS) {
     if (DREAMCAST_GL_LoadLibrary(_this, NULL) < 0) {
         return -1;
     }
+
+    // vid_set_mode(DM_640x480_VGA, PM_RGB888);
     return 0;
 }
 
@@ -212,16 +216,17 @@ SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
     }
 
     // Store the GL attributes in the context
-    context->red_size = _this->gl_config.red_size;
-    context->green_size = _this->gl_config.green_size;
-    context->blue_size = _this->gl_config.blue_size;
-    context->alpha_size = _this->gl_config.alpha_size;
-    context->depth_size = _this->gl_config.depth_size;
-    context->stencil_size = _this->gl_config.stencil_size;
-    context->double_buffer = _this->gl_config.double_buffer;
+    // context->red_size = 5;   // You can still set these if you want to keep them in context
+    // context->green_size = 6;
+    // context->blue_size = 5;
+    // context->alpha_size = 0;
+    // context->depth_size = 32;
+    // context->stencil_size = 8;
+    // context->double_buffer = 1;
 
     return (SDL_GLContext) context;
 }
+
 
 int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;

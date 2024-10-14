@@ -1,7 +1,7 @@
-TARGET = sdlanim
-OBJS = sdlanim.o romdisk.o
+TARGET = texture
+OBJS = texture.o romdisk.o
 KOS_ROMDISK_DIR = romdisk
- 
+
 # Update include paths for SDL2
 KOS_CFLAGS+= -I../../../../build-scripts/build/include -I../../../../build-scripts/build/include-config-/SDL2 -I../../../../build-scripts/build/include/SDL2 -I. -DDREAMCAST
 
@@ -17,7 +17,7 @@ all: $(TARGET).bin
 include $(KOS_BASE)/Makefile.rules
 
 clean:
-	rm -f $(OBJS) $(TARGET).elf $(TARGET).bin romdisk.img
+	rm -f $(OBJS) $(TARGET).elf $(TARGET).bin romdisk.o romdisk.img
 
 $(TARGET).elf: $(OBJS)
 	kos-cc -o $(TARGET).elf $(OBJS) -lSDL2 -lSDL2main -lGL -lm -lkosutils

@@ -82,7 +82,9 @@ void LoadGLTextures() {
 }
 
 
-void InitGL(int Width, int Height) {
+/* A general OpenGL initialization function.  Sets all of the initial parameters. */
+void InitGL(int Width, int Height)            // We call this right after our OpenGL window is created.
+{
     glViewport(0, 0, Width, Height);
     LoadGLTextures();
     glEnable(GL_TEXTURE_2D);

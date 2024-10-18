@@ -425,8 +425,8 @@ convert_format(GL_RenderData *renderdata, Uint32 pixel_format,
         break;
     case SDL_PIXELFORMAT_ARGB1555:
         *internalFormat = GL_RGBA;
-        *format = GL_RGBA;
-        *type = GL_UNSIGNED_SHORT_5_5_5_1;  // Dreamcast-specific handling for ARGB1555
+        *format = GL_BGRA; 
+        *type = GL_UNSIGNED_SHORT_1_5_5_5_REV; // // Dreamcast-specific handling for ARGB1555
         break;
     case SDL_PIXELFORMAT_ARGB8888:
         *internalFormat = GL_RGBA;
@@ -518,6 +518,19 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             SDL_free(data);
             return SDL_OutOfMemory();
         }
+#ifdef __DREAMCAST__
+    // // Remove the color key setup or modify it to handle alpha correctly
+    // if (texture->format == SDL_PIXELFORMAT_ARGB8888) {
+    //     // If you still want to use color keying for some reason:
+    //     // Uint32 transparentColor = *(Uint32 *)data->pixels; // Get the transparent color
+    //     // SDL_SetColorKey(data->pixels, SDL_TRUE, transparentColor);
+    //     SDL_Log("Dreamcast: ARGB8888 texture, using alpha channel for transparency.\n");
+    // } else if (texture->format == SDL_PIXELFORMAT_RGB888) {
+    //     Uint32 transparentColor = *(Uint32 *)data->pixels; // Get the transparent color
+    //     SDL_SetColorKey(data->pixels, SDL_TRUE, transparentColor);        
+    //     SDL_Log("Dreamcast: RGB888 texture, ensure conversion to ARGB8888 for proper blending.\n");
+    // }
+#endif  
     }
 
     if (texture->access == SDL_TEXTUREACCESS_TARGET) {
@@ -548,11 +561,46 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
         data->texw = (GLfloat)texture_w;
         data->texh = (GLfloat)texture_h;
     } else {
-        texture_w = SDL_powerof2(texture->w);
-        texture_h = SDL_powerof2(texture->h);
-        data->texw = (GLfloat)(texture->w) / texture_w;
-        data->texh = (GLfloat)texture->h / texture_h;
-    }
+#ifdef __DREAMCAST__
+        GLint maxSize;
+        renderdata->glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+
+        int isPowerOfTwoWidth = (texture->w & (texture->w - 1)) == 0;
+        int isPowerOfTwoHeight = (texture->h & (texture->h - 1)) == 0;
+
+        if (!isPowerOfTwoWidth || !isPowerOfTwoHeight) {
+            int oldtexture_w = texture->w;
+            int oldtexture_h = texture->h;
+            texture_w = SDL_powerof2(texture->w);
+            texture_h = SDL_powerof2(texture->h);
+            texture_w = (texture_w > maxSize) ? maxSize : texture_w;
+            texture_h = (texture_h > maxSize) ? maxSize : texture_h;
+
+            data->texw = (GLfloat)texture->w / texture_w;
+            data->texh = (GLfloat)texture->h / texture_h;
+
+            SDL_Log("Dreamcast: Adjusted texture size to power-of-two: oldw=%d, oldh=%d, w=%d, h=%d, maxSize=%d\n", oldtexture_w, oldtexture_h, texture_w, texture_h, maxSize);
+
+            texture->scaleMode = SDL_ScaleModeNearest;
+
+            const int texturebpp = SDL_BYTESPERPIXEL(texture->format);
+            int newStride = texture_w * texturebpp;
+            renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (newStride / texturebpp));
+        } else {
+            texture_w = texture->w;
+            texture_h = texture->h;
+            data->texw = 1.0f;
+            data->texh = 1.0f;
+             SDL_Log("Dreamcast: Texture size is power-of-two: w=%d, h=%d\n", texture_w, texture_h);
+        }
+
+#else
+    texture_w = SDL_powerof2(texture->w);
+    texture_h = SDL_powerof2(texture->h);
+    data->texw = (GLfloat)(texture->w) / texture_w;
+    data->texh = (GLfloat)texture->h / texture_h;
+#endif
+}
 
     data->format = format;
     data->formattype = type;
@@ -729,6 +777,12 @@ static int GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     renderdata->glBindTexture(textype, data->texture);
     renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / texturebpp));
+#ifdef __DREAMCAST__    
+    // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, 
+    //             "Dreamcast: glTexSubImage2D - textype=%d, level=0, rect->x=%d, rect->y=%d, adjustedWidth=%d, adjustedHeight=%d, format=%d, formattype=%d, pixels=%p\n",
+    //             textype, rect->x, rect->y, adjustedWidth, adjustedHeight, data->format, data->formattype, pixels);
+
+#endif
     renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w,
                                 rect->h, data->format, data->formattype,
                                 pixels);

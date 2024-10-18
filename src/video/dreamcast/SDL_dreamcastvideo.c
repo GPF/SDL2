@@ -175,7 +175,7 @@ int DREAMCAST_VideoInit(_THIS) {
     int disp_mode;
     int pixel_mode;
     int width = 640, height = 480; // Default to 640x480, modify based on requirements
-    int bpp = 32;  // Bits per pixel
+    int bpp = 16;  // Bits per pixel
     Uint32 Rmask, Gmask, Bmask;
 
     SDL_zero(current_mode);

@@ -89,8 +89,8 @@ int main(int argc, char* argv[])
         return 1;
     }
     // Set SDL hint for the renderer
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "opengl");    
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
         SDL_Log("Failed to create renderer: %s", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -99,7 +99,7 @@ int main(int argc, char* argv[])
     }
 
     /* load sprite and create texture */
-    temp = SDL_LoadBMP("/rd/sprite.bmp");
+    temp = SDL_LoadBMP("/rd/sprite2.bmp");
     if (!temp) {
         SDL_Log("Failed to load sprite image: %s", SDL_GetError());
         SDL_DestroyRenderer(renderer);
@@ -107,8 +107,10 @@ int main(int argc, char* argv[])
         SDL_Quit();
         return 1;
     }
-    SDL_SetColorKey(temp, SDL_TRUE, SDL_MapRGB(temp->format, 255, 0, 255));
-    spriteTexture = SDL_CreateTextureFromSurface(renderer, temp);
+    // SDL_SetColorKey(temp, SDL_TRUE, SDL_MapRGB(temp->format, 255, 0, 255));
+    // spriteTexture = SDL_CreateTextureFromSurface(renderer, temp);
+    SDL_Surface* converted_surface1 = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB8888, 0); 
+    spriteTexture = SDL_CreateTextureFromSurface(renderer, converted_surface1);
     SDL_FreeSurface(temp);
 
     if (!spriteTexture) {
@@ -129,7 +131,9 @@ int main(int argc, char* argv[])
         SDL_Quit();
         return 1;
     }
-    grassTexture = SDL_CreateTextureFromSurface(renderer, temp);
+    // grassTexture = SDL_CreateTextureFromSurface(renderer, temp);
+    SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB1555, 0);    
+    grassTexture = SDL_CreateTextureFromSurface(renderer, converted_surface);
     SDL_FreeSurface(temp);
 
     if (!grassTexture) {
@@ -201,7 +205,7 @@ int main(int argc, char* argv[])
                 SDL_RenderCopy(renderer, grassTexture, NULL, &position);
             }
         }
-
+    // SDL_SetTextureBlendMode(spriteTexture, SDL_BLENDMODE_BLEND);
         /* Draw the selected image of the sprite at the right position */
         {
             SDL_Rect spriteImage;
@@ -213,7 +217,7 @@ int main(int argc, char* argv[])
             SDL_Rect destRect = {spritePosition.x, spritePosition.y, SPRITE_SIZE, SPRITE_SIZE};
             SDL_RenderCopy(renderer, spriteTexture, &spriteImage, &destRect);
         }
-
+        animationFlip = !animationFlip; // Toggle animation state
         /* update the screen */
         SDL_RenderPresent(renderer);
     }

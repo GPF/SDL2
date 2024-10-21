@@ -46,11 +46,11 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* filename) {
     }
     free(tmpbuf);
 
-    // Set transparent pixel as the pixel at (0,0) for BMPs with no alpha channel
-    if (image->format->BitsPerPixel == 24 || image->format->BitsPerPixel == 32) {
-        Uint32 transparentColor = *(Uint32 *)image->pixels;
-        SDL_SetColorKey(image, SDL_TRUE, transparentColor);
-    }
+    // // Set transparent pixel as the pixel at (0,0) for BMPs with no alpha channel
+    // if (image->format->BitsPerPixel == 24 || image->format->BitsPerPixel == 32) {
+    //     Uint32 transparentColor = *(Uint32 *)image->pixels;
+    //     SDL_SetColorKey(image, SDL_TRUE, transparentColor);
+    // }
 
     // Convert the surface to a format compatible with the renderer
     SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(image, SDL_PIXELFORMAT_ARGB1555, 0);
@@ -71,52 +71,52 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* filename) {
     return texture;
 }
 
-
-
 void DrawScene(SDL_Renderer* renderer) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
     SDL_RenderClear(renderer);
 
-    // Calculate the center of the screen
-    int centerX = WINDOW_WIDTH / 2;
-    int centerY = WINDOW_HEIGHT / 2;
-
-    // Define the center of the texture
+    // Define the dimensions of the texture
     int textureWidth = 256; // Width of your texture
     int textureHeight = 256; // Height of your texture
 
-    // Define the corners of the quad
-    SDL_Point corners[4] = {
-        {-textureWidth / 2, -textureHeight / 2}, // Top-left corner
-        {textureWidth / 2, -textureHeight / 2}, // Top-right corner
-        {textureWidth / 2, textureHeight / 2}, // Bottom-right corner
-        {-textureWidth / 2, textureHeight / 2} // Bottom-left corner
-    };
+    // Calculate the number of textures to draw across the screen
+    int numTextures = WINDOW_WIDTH / textureWidth;
 
-    // Apply rotation around the center
-    for (int i = 0; i < 4; i++) {
-        float x = corners[i].x;
-        float y = corners[i].y;
+    // Loop to draw the texture multiple times across the screen
+    for (int i = 0; i < numTextures; ++i) {
+        // Calculate the x position for this texture
+        int xPosition = i * textureWidth + (textureWidth / 2);
 
-        // Rotate around Z axis
-        corners[i].x = (int)(x * cos(zrot) - y * sin(zrot));
-        corners[i].y = (int)(x * sin(zrot) + y * cos(zrot));
+        // Define the center position for this texture
+        int centerX = xPosition;
+        int centerY = WINDOW_HEIGHT / 2;
+
+        // Define the corners of the quad
+        SDL_Point corners[4] = {
+            {-textureWidth / 2, -textureHeight / 2}, // Top-left corner
+            {textureWidth / 2, -textureHeight / 2}, // Top-right corner
+            {textureWidth / 2, textureHeight / 2}, // Bottom-right corner
+            {-textureWidth / 2, textureHeight / 2} // Bottom-left corner
+        };
+
+        // Determine the rotation angle for this texture
+        double rotationAngle = (i % 2 == 0) ? zrot * (180.0 / M_PI) : -zrot * (180.0 / M_PI);
+
+        // Calculate the destination rectangle's position (centered)
+        SDL_Rect dstRect = {
+            centerX - textureWidth / 2,  // Center the rectangle horizontally
+            centerY - textureHeight / 2,  // Center the rectangle vertically
+            textureWidth,                  // Texture width
+            textureHeight                  // Texture height
+        };
+
+        // Draw the rotated texture with vertical flip
+        SDL_RenderCopyEx(renderer, texture, NULL, &dstRect, rotationAngle, NULL, SDL_FLIP_VERTICAL);
     }
 
-    // Calculate the destination rectangle's position (centered)
-    SDL_Rect dstRect = {
-        centerX - textureWidth / 2,  // Center the rectangle on the screen
-        centerY - textureHeight / 2,  // Center the rectangle on the screen
-        textureWidth,                  // Texture width
-        textureHeight                  // Texture height
-    };
-
-    // Draw the rotated quad with vertical flip
-    SDL_RenderCopyEx(renderer, texture, NULL, &dstRect, zrot * (180.0 / M_PI), NULL, SDL_FLIP_VERTICAL);
-
+    // Present the final rendered scene
     SDL_RenderPresent(renderer);
 }
-
 
     void HandleJoystickInput(SDL_Joystick* joystick) {
         Uint8 hat = SDL_JoystickGetHat(joystick, 0);
@@ -157,7 +157,7 @@ void DrawScene(SDL_Renderer* renderer) {
             SDL_Log("  %s", SDL_GetPixelFormatName(info.texture_formats[i]));
         }
     }
-        texture = LoadTexture(renderer, "/rd/Troy2024.bmp");
+        texture = LoadTexture(renderer, "/rd/Troy2024_200.bmp");  
         if (!texture) {
             SDL_DestroyRenderer(renderer);
             SDL_DestroyWindow(window);

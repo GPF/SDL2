@@ -8,7 +8,7 @@ BUILD_DIR="${PWD}/build"
 ENABLE_OPENGL=ON
 ENABLE_SDL_TESTS=ON
 ENABLE_PTHREADS=ON
-
+BUILD_JOBS=$(nproc) # Use all available CPU cores by default
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
 case $1 in
@@ -59,6 +59,7 @@ if [ "$ENABLE_PTHREADS" == "ON" ]; then
 else
     CMAKE_OPTS="$CMAKE_OPTS -DSDL_PTHREADS=OFF"
 fi
+CMAKE_OPTS="$CMAKE_OPTS"
 # Run CMake to configure the project with the selected options
 cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" \
       -G "Unix Makefiles" \
@@ -68,7 +69,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" \
       -DCMAKE_INSTALL_INCLUDEDIR=include/ \
       "$SOURCE_DIR"
 # Build the project
-make install
+make -j"$BUILD_JOBS" install
 
 # Optional: Run tests or other commands here
 # Print a message indicating the build is complete

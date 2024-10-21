@@ -22,38 +22,147 @@
 
 #ifdef SDL_VIDEO_DRIVER_DREAMCAST
 
-/* Being a null driver, there's no event stream. We just define stubs for
-   most of the API. */
-
 #include "SDL_dreamcastevents_c.h"
-#include <dc/maple.h>
-#include <dc/maple/mouse.h>
-#include <dc/maple/keyboard.h>
-#include <stdio.h>
-#include <arch/arch.h>
-#include <arch/timer.h>
-#include <arch/irq.h>
+#include "../../events/SDL_events_c.h"
+#include "../../events/SDL_keyboard_c.h"
+#include "SDL_events.h"
+#include <kos.h>
 #include "SDL_dreamcastvideo.h"
 #include "SDL_dreamcastevents_c.h"
+
 #define MIN_FRAME_UPDATE 16
 
-static __inline__ Uint32 myGetTicks(void)
-{
-	return ((timer_us_gettime64()>>10));
+// extern unsigned __sdl_dc_mouse_shift;
+
+const static unsigned short sdl_key[] = {
+    /*0*/    0, 0, 0, 0, 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
+        'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+        'u', 'v', 'w', 'x', 'y', 'z',
+    /*1e*/    '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+    /*28*/    SDL_SCANCODE_RETURN, SDL_SCANCODE_ESCAPE, SDL_SCANCODE_BACKSPACE, SDL_SCANCODE_TAB, SDL_SCANCODE_SPACE, SDL_SCANCODE_MINUS, SDL_SCANCODE_EQUALS , SDL_SCANCODE_LEFTBRACKET, 
+    SDL_SCANCODE_RIGHTBRACKET, SDL_SCANCODE_BACKSLASH, 0, SDL_SCANCODE_SEMICOLON, SDL_SCANCODE_APOSTROPHE,
+    /*35*/    SDL_SCANCODE_GRAVE, SDL_SCANCODE_COMMA, SDL_SCANCODE_PERIOD, SDL_SCANCODE_SLASH, SDL_SCANCODE_CAPSLOCK, 
+    SDL_SCANCODE_F1, SDL_SCANCODE_F2, SDL_SCANCODE_F3, SDL_SCANCODE_F4, SDL_SCANCODE_F5, SDL_SCANCODE_F6, SDL_SCANCODE_F7, SDL_SCANCODE_F8, SDL_SCANCODE_F9, SDL_SCANCODE_F10, SDL_SCANCODE_F11, SDL_SCANCODE_F12,
+    /*46*/    SDL_SCANCODE_PRINTSCREEN, SDL_SCANCODE_SCROLLLOCK, SDL_SCANCODE_PAUSE, SDL_SCANCODE_INSERT, SDL_SCANCODE_HOME, SDL_SCANCODE_PAGEUP, SDL_SCANCODE_DELETE, SDL_SCANCODE_END, SDL_SCANCODE_PAGEDOWN, SDL_SCANCODE_RIGHT, SDL_SCANCODE_LEFT, SDL_SCANCODE_DOWN, SDL_SCANCODE_UP,
+    /*53*/    SDL_SCANCODE_NUMLOCKCLEAR, SDL_SCANCODE_KP_DIVIDE, SDL_SCANCODE_KP_MULTIPLY, SDL_SCANCODE_KP_MINUS, SDL_SCANCODE_KP_PLUS, SDL_SCANCODE_KP_ENTER, 
+    SDL_SCANCODE_KP_1, SDL_SCANCODE_KP_2, SDL_SCANCODE_KP_3, SDL_SCANCODE_KP_4, SDL_SCANCODE_KP_5, SDL_SCANCODE_KP_6,
+    /*5f*/    SDL_SCANCODE_KP_7, SDL_SCANCODE_KP_8, SDL_SCANCODE_KP_9, SDL_SCANCODE_KP_0, SDL_SCANCODE_KP_PERIOD, 0 /* S3 */
+};
+
+const static unsigned short sdl_shift[] = {
+    SDL_SCANCODE_LCTRL, SDL_SCANCODE_LSHIFT, SDL_SCANCODE_LALT, 0 /* S1 */,
+    SDL_SCANCODE_RCTRL, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_RALT, 0 /* S2 */,
+};
+
+
+
+#define MOUSE_WHEELUP    (1<<4)
+#define MOUSE_WHEELDOWN  (1<<5)
+
+const static char sdl_mousebtn[] = {
+    MOUSE_LEFTBUTTON,
+    MOUSE_RIGHTBUTTON,
+    MOUSE_SIDEBUTTON,
+    MOUSE_WHEELUP,
+    MOUSE_WHEELDOWN
+};
+
+static void mouse_update(void) {
+    maple_device_t *dev;
+    mouse_state_t *state;
+
+    static int prev_buttons;
+    int buttons, changed;
+    int i, dx, dy;
+
+    // Check if any mouse is connected
+    if (!(dev = maple_enum_type(0, MAPLE_FUNC_MOUSE)) ||
+        !(state = maple_dev_status(dev)))
+        return;
+
+    buttons = state->buttons ^ 0xff;
+    if (state->dz < 0) buttons |= MOUSE_WHEELUP;
+    if (state->dz > 0) buttons |= MOUSE_WHEELDOWN;
+
+    dx = state->dx;// >> __sdl_dc_mouse_shift;
+    dy = state->dy;// >> __sdl_dc_mouse_shift;
+    if (dx || dy) {
+        SDL_Event event;
+        event.type = SDL_MOUSEMOTION;
+        event.motion.xrel = dx;
+        event.motion.yrel = dy;
+        SDL_PushEvent(&event);
+    }
+
+    changed = buttons ^ prev_buttons;
+    for (i = 0; i < sizeof(sdl_mousebtn); i++) {
+        if (changed & sdl_mousebtn[i]) {
+            SDL_Event event;
+            event.type = (buttons & sdl_mousebtn[i]) ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+            event.button.button = i + 1; // SDL button indexes start at 1
+            SDL_PushEvent(&event);
+        }
+    }
+    prev_buttons = buttons;
 }
 
+static void keyboard_update(void) {
+    static kbd_state_t old_state;
+    kbd_state_t *state;
+    maple_device_t *dev;
+    int shiftkeys;
+    int i;
+
+    if (!(dev = maple_enum_type(0, MAPLE_FUNC_KEYBOARD)))
+        return;
+
+    state = maple_dev_status(dev);
+    if (!state)
+        return;
+
+    shiftkeys = state->shift_keys ^ old_state.shift_keys;
+    for (i = 0; i < sizeof(sdl_shift) / sizeof(sdl_shift[0]); ++i) { // Adjusted to get the count of shift keys
+        if ((shiftkeys >> i) & 1) {
+            SDL_Event event;
+            event.type = (state->shift_keys >> i) & 1 ? SDL_KEYDOWN : SDL_KEYUP;
+            event.key.keysym.scancode = sdl_shift[i]; // Use scancode
+            event.key.keysym.sym = SDL_GetKeyFromScancode(sdl_shift[i]); // Get the corresponding sym if needed
+            SDL_PushEvent(&event);
+        }
+    }
+
+    for (i = 0; i < sizeof(sdl_key) / sizeof(sdl_key[0]); ++i) { // Adjusted to get the count of keys
+        if (state->matrix[i] != old_state.matrix[i]) {
+            int key = sdl_key[i];
+            if (key) {
+                SDL_Event event;
+                event.type = state->matrix[i] ? SDL_KEYDOWN : SDL_KEYUP;
+                event.key.keysym.scancode = key; // Use scancode
+                event.key.keysym.sym = SDL_GetKeyFromScancode(key); // Get the corresponding sym if needed
+                SDL_PushEvent(&event);
+            }
+        }
+    }
+
+    old_state = *state;
+}
+
+// static __inline__ Uint32 myGetTicks(void)
+// {
+//     return ((timer_us_gettime64() >> 10));
+// }
+
+Uint32 SDL_GetTicks(void);
 void DREAMCAST_PumpEvents(_THIS)
 {
-	// static Uint32 last_time=0;
-	// Uint32 now=myGetTicks();
-	// if (now-last_time>MIN_FRAME_UPDATE)
-	// {
-	// 	keyboard_update();
-	// 	mouse_update();
-	// 	last_time=now;
-	// }
+    static Uint32 last_time = 0;
+    Uint32 now = SDL_GetTicks();
+    if (now - last_time > MIN_FRAME_UPDATE) {
+        keyboard_update();
+        mouse_update();
+        last_time = now;
+    }
 }
 
 #endif /* SDL_VIDEO_DRIVER_DREAMCAST */
 
-/* vi: set ts=4 sw=4 expandtab: */

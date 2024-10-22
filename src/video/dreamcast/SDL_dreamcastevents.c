@@ -113,7 +113,7 @@ static void mouse_update(void) {
     }
     prev_buttons = buttons;
 }
-
+extern int dreamcast_text_input_enabled;
 static void keyboard_update(void) {
     static kbd_state_t old_state;
     kbd_state_t *state;
@@ -144,21 +144,77 @@ static void keyboard_update(void) {
             int key = sdl_key[i];
             if (key) {
                 SDL_Event event;
-                event.type = state->matrix[i] ? SDL_KEYDOWN : SDL_KEYUP;
-                event.key.keysym.scancode = key; // Use scancode
-                event.key.keysym.sym = SDL_GetKeyFromScancode(key); // Get the corresponding sym if needed
-                SDL_PushEvent(&event);
+                if (state->matrix[i]) { // Key pressed
+                    event.type = SDL_KEYDOWN;
+                    event.key.keysym.scancode = key; // Use scancode
+                    event.key.keysym.sym = SDL_GetKeyFromScancode(key); // Get the corresponding sym if needed
+                    event.key.keysym.mod = state->shift_keys;
+
+    // If text input mode is enabled and the key is printable, send SDL_TEXTINPUT event
+    if (dreamcast_text_input_enabled) {
+        char text[2] = {0};
+        Uint16 modState = state->shift_keys;
+
+        // Define how keys should behave, with or without shift
+        if (key >= SDL_SCANCODE_A && key <= SDL_SCANCODE_Z) {
+            text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? 'A' + (key - SDL_SCANCODE_A) : 'a' + (key - SDL_SCANCODE_A);
+        } else if (key >= SDL_SCANCODE_1 && key <= SDL_SCANCODE_0) {
+            // Numbers might change with shift, but for simplicity, this treats them as unshifted
+            text[0] = '0' + (key - SDL_SCANCODE_1 + 1) % 10;
+        } else {
+            // This mapping needs to be comprehensive to cover all special keys
+            struct {
+                SDL_Scancode key;
+                char unshifted;
+                char shifted;
+            } specialKeys[] = {
+                {SDL_SCANCODE_SLASH, '/', '?'},
+                {SDL_SCANCODE_BACKSLASH, '\\', '|'},
+                {SDL_SCANCODE_PERIOD, '.', '>'},
+                {SDL_SCANCODE_COMMA, ',', '<'},
+                {SDL_SCANCODE_SEMICOLON, ';', ':'},
+                {SDL_SCANCODE_APOSTROPHE, '\'', '"'},
+                {SDL_SCANCODE_MINUS, '-', '_'},
+                {SDL_SCANCODE_EQUALS, '=', '+'},
+                {SDL_SCANCODE_LEFTBRACKET, '[', '{'},
+                {SDL_SCANCODE_RIGHTBRACKET, ']', '}'},
+                {SDL_SCANCODE_GRAVE, '`', '~'},
+                // Add more mappings here
+            };
+
+            for (int i = 0; i < sizeof(specialKeys) / sizeof(specialKeys[0]); ++i) {
+                if (key == specialKeys[i].key) {
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? specialKeys[i].shifted : specialKeys[i].unshifted;
+                    break;
+                }
+            }
+        }
+
+        // Push the TEXTINPUT event if a character was generated
+        if (text[0] != 0) {
+            SDL_Event text_event;
+            text_event.type = SDL_TEXTINPUT;
+            SDL_strlcpy(text_event.text.text, text, sizeof(text_event.text.text));
+            SDL_PushEvent(&text_event);
+            // printf("Pushed SDL_TEXTINPUT: char='%c'\n", text[0]);
+        }
+    }
+
+                    SDL_PushEvent(&event);
+                } else { // Key released
+                    event.type = SDL_KEYUP;
+                    event.key.keysym.scancode = key;
+                    event.key.keysym.sym = SDL_GetKeyFromScancode(key);
+                    SDL_PushEvent(&event);
+                }
+
+                // printf("Pushed event: type=%d, key=%d, mod=%d\n", event.type, event.key.keysym.sym, event.key.keysym.mod);
             }
         }
     }
 
     old_state = *state;
 }
-
-// static __inline__ Uint32 myGetTicks(void)
-// {
-//     return ((timer_us_gettime64() >> 10));
-// }
 
 Uint32 SDL_GetTicks(void);
 void DREAMCAST_PumpEvents(_THIS)

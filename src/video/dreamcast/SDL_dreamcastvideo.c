@@ -96,6 +96,24 @@ static int DREAMCAST_Available(void)
     return 1;
 
 }
+int dreamcast_text_input_enabled=SDL_FALSE;
+void DREAMCAST_StartTextInput(SDL_VideoDevice *device)
+{
+    if (!dreamcast_text_input_enabled)
+    {
+        dreamcast_text_input_enabled = SDL_TRUE;
+        // printf("DREAMCAST_StartTextInput: Text input mode enabled.\n");
+    }
+}
+
+void DREAMCAST_StopTextInput(SDL_VideoDevice *device)
+{
+    if (dreamcast_text_input_enabled)
+    {
+        dreamcast_text_input_enabled = SDL_FALSE;
+        // printf("DREAMCAST_StopTextInput: Text input mode disabled.\n");
+    }
+}
 
 static void DREAMCAST_DeleteDevice(SDL_VideoDevice *device)
 {
@@ -124,6 +142,9 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
     device->PumpEvents = DREAMCAST_PumpEvents;
     device->GetDisplayModes = DREAMCAST_GetDisplayModes;
     device->SetDisplayMode = DREAMCAST_SetDisplayMode;
+    // device->HasScreenKeyboardSupport = DREAMCAST_HasScreenKeyboardSupport;
+    device->StartTextInput = DREAMCAST_StartTextInput;
+    device->StopTextInput = DREAMCAST_StopTextInput;    
 #ifdef SDL_INPUT_LINUXEV
     if (evdev) {
         device->PumpEvents = DREAMCAST_EVDEV_Poll;
@@ -143,7 +164,7 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
 #endif
 
     device->free = DREAMCAST_DeleteDevice;
-
+    device->quirk_flags = VIDEO_DEVICE_QUIRK_FULLSCREEN_ONLY;
     return device;
 }
 

@@ -155,38 +155,42 @@ static void keyboard_update(void) {
         char text[2] = {0};
         Uint16 modState = state->shift_keys;
 
-        // Define how keys should behave, with or without shift
+        // Check for alphanumeric characters
         if (key >= SDL_SCANCODE_A && key <= SDL_SCANCODE_Z) {
             text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? 'A' + (key - SDL_SCANCODE_A) : 'a' + (key - SDL_SCANCODE_A);
         } else if (key >= SDL_SCANCODE_1 && key <= SDL_SCANCODE_0) {
-            // Numbers might change with shift, but for simplicity, this treats them as unshifted
+            // Handle number keys (1-0)
             text[0] = '0' + (key - SDL_SCANCODE_1 + 1) % 10;
         } else {
-            // This mapping needs to be comprehensive to cover all special keys
-            struct {
-                SDL_Scancode key;
-                char unshifted;
-                char shifted;
-            } specialKeys[] = {
-                {SDL_SCANCODE_SLASH, '/', '?'},
-                {SDL_SCANCODE_BACKSLASH, '\\', '|'},
-                {SDL_SCANCODE_PERIOD, '.', '>'},
-                {SDL_SCANCODE_COMMA, ',', '<'},
-                {SDL_SCANCODE_SEMICOLON, ';', ':'},
-                {SDL_SCANCODE_APOSTROPHE, '\'', '"'},
-                {SDL_SCANCODE_MINUS, '-', '_'},
-                {SDL_SCANCODE_EQUALS, '=', '+'},
-                {SDL_SCANCODE_LEFTBRACKET, '[', '{'},
-                {SDL_SCANCODE_RIGHTBRACKET, ']', '}'},
-                {SDL_SCANCODE_GRAVE, '`', '~'},
-                // Add more mappings here
-            };
-
-            for (int i = 0; i < sizeof(specialKeys) / sizeof(specialKeys[0]); ++i) {
-                if (key == specialKeys[i].key) {
-                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? specialKeys[i].shifted : specialKeys[i].unshifted;
+            // Handle special characters using mappings
+            switch (key) {
+                case SDL_SCANCODE_SLASH:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '?' : '/';
                     break;
-                }
+                case SDL_SCANCODE_BACKSLASH:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '|' : '\\';
+                    break;
+                case SDL_SCANCODE_COMMA:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '<' : ',';
+                    break;
+                case SDL_SCANCODE_PERIOD:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '>' : '.';
+                    break;
+                case SDL_SCANCODE_SEMICOLON:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? ':' : ';';
+                    break;
+                case SDL_SCANCODE_APOSTROPHE:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '"' : '\'';
+                    break;
+                case SDL_SCANCODE_MINUS:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '_' : '-';
+                    break;
+                case SDL_SCANCODE_EQUALS:
+                    text[0] = (modState & (KMOD_LSHIFT | KMOD_RSHIFT)) ? '+' : '=';
+                    break;
+                // Add more special key cases as necessary
+                default:
+                    break; // Ignore any keys that don't require special handling
             }
         }
 

@@ -26,19 +26,35 @@
 #include "SDL_dreamcastframebuffer_c.h"
 
 #define DREAMCAST_SURFACE "_SDL_DreamcastSurface"
-
 int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *format, void **pixels, int *pitch)
 {
     SDL_Surface *surface;
-    const Uint32 surface_format = SDL_PIXELFORMAT_RGB888;
     int w, h;
 
     /* Free the old framebuffer surface */
     SDL_DREAMCAST_DestroyWindowFramebuffer(_this, window);
 
-    /* Create a new one */
     SDL_GetWindowSizeInPixels(window, &w, &h);
-    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, surface_format);
+
+    // Retrieve the display mode's format to ensure consistency with the surface creation
+    SDL_DisplayMode mode;
+    if (SDL_GetWindowDisplayMode(window, &mode) != 0) {
+        return SDL_SetError("Failed to get window display mode");
+    }
+
+    // Use the format from the display mode or fallback to the default
+    Uint32 surface_format = mode.format;
+    if (surface_format != SDL_PIXELFORMAT_RGB565 &&
+        surface_format != SDL_PIXELFORMAT_ARGB1555 &&
+        surface_format != SDL_PIXELFORMAT_RGB888 &&
+        surface_format != SDL_PIXELFORMAT_ARGB8888) {
+        surface_format = SDL_PIXELFORMAT_RGB888;  // Default format if unsupported
+    }
+
+    // Create the surface with the appropriate format
+    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 
+                                             SDL_BITSPERPIXEL(surface_format), 
+                                             surface_format);
     if (!surface) {
         return -1;
     }
@@ -50,8 +66,6 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     *pitch = surface->pitch;
     return 0;
 }
-
-#include <string.h> // For memcpy
 
 int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects)
 {

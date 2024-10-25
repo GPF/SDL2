@@ -66,9 +66,8 @@ void SDL_DC_ShowAskHz(SDL_bool value)
 void SDL_DC_Default60Hz(SDL_bool value)
 {
 	sdl_dc_default_60hz=value;
-}//Custom code for 60Hz
-static int sdl_dc_no_ask_60hz=0;
-static int sdl_dc_default_60hz=0;
+}
+
 /* Initialization/Query functions */
 static int DREAMCAST_VideoInit(_THIS);
 static void DREAMCAST_VideoQuit(_THIS);

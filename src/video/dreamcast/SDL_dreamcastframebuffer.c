@@ -30,20 +30,22 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
 {
     SDL_Surface *surface;
     int w, h;
-
+    SDL_DisplayMode mode;
+    Uint32 surface_format = mode.format;
+    
     /* Free the old framebuffer surface */
     SDL_DREAMCAST_DestroyWindowFramebuffer(_this, window);
 
     SDL_GetWindowSizeInPixels(window, &w, &h);
 
     // Retrieve the display mode's format to ensure consistency with the surface creation
-    SDL_DisplayMode mode;
+
     if (SDL_GetWindowDisplayMode(window, &mode) != 0) {
         return SDL_SetError("Failed to get window display mode");
     }
 
     // Use the format from the display mode or fallback to the default
-    Uint32 surface_format = mode.format;
+
     if (surface_format != SDL_PIXELFORMAT_RGB565 &&
         surface_format != SDL_PIXELFORMAT_ARGB1555 &&
         surface_format != SDL_PIXELFORMAT_RGB888 &&

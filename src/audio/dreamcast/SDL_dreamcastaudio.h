@@ -35,8 +35,11 @@
 typedef struct {
     snd_stream_hnd_t stream_handle;  // Handle for the audio stream
     void *buffer;                    // Buffer for audio data
+    int buffer_size;                 // Total size of the buffer
+    int read_index;                  // Read index for the circular buffer
+    int write_index;                 // Write index for the circular buffer
+    SDL_bool direct_buffer_access;   // Flag to enable direct buffer access
 } SDL_PrivateAudioData;
-
 
 #endif /* SDL_dreamcastaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */

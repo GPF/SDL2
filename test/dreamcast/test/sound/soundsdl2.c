@@ -5,6 +5,7 @@
 
 #ifdef DREAMCAST
 #include "kos.h"
+#include "SDL_hints.h"
 #define WAV_PATH "/rd/001_hazard.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
@@ -58,12 +59,13 @@ static void reopen_audio(void) {
     open_audio();
 }
 #endif
+void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size);
+void SDLCALL fillerup(void *userdata, Uint8 *stream, int len) {
+    // Fill the stream directly
+    // userdata can contain any necessary state information
 
-void SDLCALL fillerup(void *unused, Uint8 *stream, int len) {
     Uint8 *waveptr = wave.sound + wave.soundpos;
     int waveleft = wave.soundlen - wave.soundpos;
-
-    // SDL_Log("fillerup called, len: %d", len);
 
     while (waveleft <= len) {
         SDL_memcpy(stream, waveptr, waveleft);
@@ -73,6 +75,7 @@ void SDLCALL fillerup(void *unused, Uint8 *stream, int len) {
         waveleft = wave.soundlen;
         wave.soundpos = 0;
     }
+
     SDL_memcpy(stream, waveptr, len);
     wave.soundpos += len;
 }
@@ -95,7 +98,7 @@ int main(int argc, char *argv[]) {
     SDL_Renderer *renderer;
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
-
+    SDL_SetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC, "1");
     /* Load the SDL library */
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());

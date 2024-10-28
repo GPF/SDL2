@@ -2177,6 +2177,21 @@ extern "C" {
 #define SDL_HINT_VITA_TOUCH_MOUSE_DEVICE    "SDL_HINT_VITA_TOUCH_MOUSE_DEVICE"
 
 /**
+ * \brief Hint that controls direct access to the audio buffer.
+ *
+ * This hint enables the client to access the audio buffer directly through
+ * the SDL_DC_SetSoundBuffer function, which allows writing audio data directly 
+ * into the circular buffer. By using this hint, the client can bypass the need 
+ * for multiple memory copies (i.e., memcpy) that are typically required to 
+ * transfer audio data from the callback to the buffer, improving performance 
+ * and reducing latency in audio playback. 
+ *
+ * - "0": Disable direct buffer access (default).
+ * - "1": Enable direct buffer access.
+ */
+#define SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC "SDL_AUDIO_DIRECT_BUFFER_ACCESS_DC"
+
+/**
  * A variable controlling whether the Android / tvOS remotes should be listed
  * as joystick devices, instead of sending keyboard events.
  *
@@ -2185,6 +2200,7 @@ extern "C" {
  * - "0": Remotes send enter/escape/arrow key events
  * - "1": Remotes are available as 2 axis, 2 button joysticks (the default).
  */
+
 #define SDL_HINT_TV_REMOTE_AS_JOYSTICK "SDL_TV_REMOTE_AS_JOYSTICK"
 
 /**

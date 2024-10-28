@@ -29,19 +29,41 @@
 #include <kos/thread.h>
 #include "../SDL_sysaudio.h"
 #include "SDL_timer.h"
+#include "SDL_hints.h"
 #include "kos.h"
 
 static SDL_AudioDevice *audioDevice = NULL;   // Pointer to the active audio output device
 static SDL_AudioDevice *captureDevice = NULL; // Pointer to the active audio capture device
 
+// Helper function to provide writable buffer to the client.
+// This function is now named SDL_DC_SetSoundBuffer and provides a pointer
+// to the writable part of the circular buffer.
+void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size) {
+    SDL_AudioDevice *device = audioDevice;
+    SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
+
+    // Calculate writable bytes
+    int writable_bytes;
+    if (hidden->write_index >= hidden->read_index) {
+        writable_bytes = hidden->buffer_size - hidden->write_index;
+    } else {
+        writable_bytes = hidden->read_index - hidden->write_index;
+    }
+
+    *available_size = writable_bytes;
+
+    // Return the writable part of the buffer
+    *buffer_ptr = (Uint8 *)hidden->buffer + hidden->write_index;
+}
+
 // Stream callback function
 static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
     SDL_AudioDevice *device = audioDevice;
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
-    void *buffer = hidden->buffer; // Use hidden->buffer for interleaving
-    int buffer_size = device->spec.size;
+    Uint8 *buffer = (Uint8 *)hidden->buffer;
+    int buffer_size = hidden->buffer_size;
     int bytes_to_copy = SDL_min(req, buffer_size);
-    int got = 0;
+    int remaining = bytes_to_copy;
     SDL_AudioCallback callback;
 
     SDL_LockMutex(device->mixer_lock);
@@ -55,32 +77,43 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
 
     callback = device->callbackspec.callback;
 
+    // Handle paused or disabled audio
     if (!SDL_AtomicGet(&device->enabled) || SDL_AtomicGet(&device->paused)) {
-        // Audio is not enabled or is paused, so clear the stream and set silence
         if (device->stream) {
             SDL_AudioStreamClear(device->stream);
         }
         SDL_memset(buffer, device->callbackspec.silence, bytes_to_copy);
     } else {
-        SDL_assert(device->spec.size == bytes_to_copy);
+        if (hidden->direct_buffer_access) {
+            Uint8 *writable_buffer = NULL;
+            int writable_size = 0;
 
-        // No stream conversion needed
-        if (!device->stream) {
-            callback(device->callbackspec.userdata, buffer, bytes_to_copy);
+            SDL_DC_SetSoundBuffer(&writable_buffer, &writable_size);
+            int bytes_to_copy = SDL_min(req, writable_size);
+
+            // Call the client callback directly to fill the buffer
+            device->callbackspec.callback(device->callbackspec.userdata, writable_buffer, bytes_to_copy);
+            hidden->write_index = (hidden->write_index + bytes_to_copy) % hidden->buffer_size;
+
+            
         } else {
-            // Stream conversion is needed
-            while (SDL_AudioStreamAvailable(device->stream) < bytes_to_copy) {
-                callback(device->callbackspec.userdata, hidden->buffer, buffer_size);
-                if (SDL_AudioStreamPut(device->stream, hidden->buffer, buffer_size) == -1) {
-                    SDL_AudioStreamClear(device->stream);
-                    SDL_AtomicSet(&device->enabled, 0);
-                    break;
+            // Fall back to the existing behavior with memcpy
+            if (!device->stream) {
+                callback(device->callbackspec.userdata, buffer, bytes_to_copy);
+            } else {
+                while (SDL_AudioStreamAvailable(device->stream) < bytes_to_copy) {
+                    callback(device->callbackspec.userdata, hidden->buffer, buffer_size);
+                    if (SDL_AudioStreamPut(device->stream, hidden->buffer, buffer_size) == -1) {
+                        SDL_AudioStreamClear(device->stream);
+                        SDL_AtomicSet(&device->enabled, 0);
+                        break;
+                    }
                 }
-            }
 
-            got = SDL_AudioStreamGet(device->stream, buffer, bytes_to_copy);
-            if (got != bytes_to_copy) {
-                SDL_memset(buffer, device->callbackspec.silence, bytes_to_copy);
+                int got = SDL_AudioStreamGet(device->stream, buffer, bytes_to_copy);
+                if (got != bytes_to_copy) {
+                    SDL_memset(buffer, device->callbackspec.silence, bytes_to_copy);
+                }
             }
         }
     }
@@ -88,7 +121,7 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
     SDL_UnlockMutex(device->mixer_lock);
 
     *done = req;
-    return buffer;  // Return the interleaved buffer
+    return buffer;
 }
 
 // Thread function for audio playback
@@ -119,7 +152,9 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     SDL_PrivateAudioData *hidden;
     SDL_AudioFormat test_format;
     int channels,frequency;
+    char *hint_value;
     audioDevice = _this;
+    
 
     hidden = (SDL_PrivateAudioData *)SDL_malloc(sizeof(*hidden));
     if (!hidden) {
@@ -127,6 +162,16 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     }
     SDL_zerop(hidden);
     _this->hidden = (struct SDL_PrivateAudioData*)hidden;
+
+    // Read the hint for direct buffer access
+    hint_value = SDL_GetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC);
+    if (hint_value && SDL_strcasecmp(hint_value, "1") == 0) {
+        hidden->direct_buffer_access = SDL_TRUE;
+        SDL_Log("Direct buffer access enabled for Dreamcast audio driver.");
+    } else {
+        hidden->direct_buffer_access = SDL_FALSE;
+        SDL_Log("Direct buffer access disabled for Dreamcast audio driver.");
+    }
 
     // Initialize sound stream system
     if (snd_stream_init() != 0) {
@@ -150,6 +195,10 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     }
 
     SDL_CalculateAudioSpec(&_this->spec);
+
+    hidden->buffer_size = _this->spec.size; // The size remains the same
+    hidden->read_index = 0;                 // Initialize read index
+    hidden->write_index = 0;                // Initialize write index
 
     // Allocate the stream with the data callback
     hidden->stream_handle = snd_stream_alloc(NULL, _this->spec.size);

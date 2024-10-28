@@ -77,8 +77,9 @@ int main(int argc, char *argv[]) {
 
     // Create a renderer
     // Set SDL hint for the renderer
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
+    renderer = SDL_CreateRenderer(window, -1, 0);
+    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE); 
     // renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED);    
     if (!renderer) { 
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -86,7 +87,14 @@ int main(int argc, char *argv[]) {
         SDL_Quit(); 
         return 1;  
     } 
-
+    SDL_RendererInfo info;
+    if (SDL_GetRendererInfo(renderer, &info) == 0) {
+        SDL_Log("Renderer Name: %s", info.name);
+        SDL_Log("Texture Formats: ");
+        for (int i = 0; i < info.num_texture_formats; i++) {
+            SDL_Log("  %s", SDL_GetPixelFormatName(info.texture_formats[i]));
+        }
+    }
     // Load BMP file
     SDL_RWops *rw = SDL_RWFromFile(BMP_PATH, "rb");
     if (!rw) {  
@@ -108,15 +116,41 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     printf("SDL_LoadBMP_RW\n"); 
-
+    // SDL_SetColorKey(image_surface, 1, *((Uint8 *)image_surface->pixels));
+// Print out the pixel format of the loaded image surface
+const char* format_name = SDL_GetPixelFormatName(image_surface->format->format);
+printf("Image surface format: %s\n", format_name);    
+// Uint32 transparentColor = *(Uint32 *)image_surface->pixels;
+// SDL_SetColorKey(image_surface->pixels, SDL_TRUE, transparentColor);
 // Convert the surface to ARGB8888 format
-SDL_Surface *converted_surface = SDL_ConvertSurfaceFormat(image_surface, SDL_PIXELFORMAT_RGB888, 0);
+SDL_Surface *converted_surface = SDL_ConvertSurfaceFormat(image_surface, SDL_PIXELFORMAT_ARGB8888, 0);
 if (!converted_surface) {
     printf("Failed to convert surface format: %s\n", SDL_GetError());
     SDL_FreeSurface(image_surface);
     return -1;
 }
+format_name = SDL_GetPixelFormatName(converted_surface->format->format);
+printf("converted_surface surface format: %s\n", format_name); 
+// Manually adjust the pixel data to swap BGR to RGB
+SDL_SetColorKey(converted_surface, 1, *((Uint8 *)converted_surface->pixels));
+Uint32 *pixels = (Uint32 *)converted_surface->pixels;
+for (int y = 0; y < converted_surface->h; ++y) {
+    for (int x = 0; x < converted_surface->w; ++x) {
+        Uint32 pixel = pixels[y * converted_surface->w + x];
 
+        // Extract ARGB values
+        Uint8 a = (pixel >> 24) & 0xFF;
+        Uint8 r = (pixel >> 16) & 0xFF;
+        Uint8 g = (pixel >> 8) & 0xFF;
+        Uint8 b = pixel & 0xFF;
+
+        // Swap B and R
+        Uint32 corrected_pixel = (a << 24) | (b << 16) | (g << 8) | r;
+        pixels[y * converted_surface->w + x] = corrected_pixel;
+    }
+}
+format_name = SDL_GetPixelFormatName(converted_surface->format->format);
+printf("converted_surface surface format after extract argb values: %s\n", format_name);    
     // Create texture from surface
     texture = SDL_CreateTextureFromSurface(renderer, converted_surface);
     SDL_FreeSurface(converted_surface); // Free the surface after creating the texture

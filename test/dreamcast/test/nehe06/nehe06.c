@@ -32,7 +32,12 @@ SDL_Surface *LoadBMP(char *filename) {
         fprintf(stderr, "Unable to load %s: %s\n", filename, SDL_GetError());
         return NULL;
     }
+const char* format_name = SDL_GetPixelFormatName(image->format->format);
+printf("Image surface format: %s\n", format_name);  
 
+    printf("SDL_LoadBMP_RW\n"); 
+    SDL_SetColorKey(image, 1, *((Uint8 *)image->pixels));
+ 
     tmpbuf = (Uint8 *)malloc(image->pitch);
     if (!tmpbuf) {
         fprintf(stderr, "Out of memory\n");

@@ -89,8 +89,11 @@ int main(int argc, char* argv[])
         return 1;
     }
     // Set SDL hint for the renderer
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "opengl");    
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+            // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+    // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Set for DMA mode
+    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
+    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE| SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) {
         SDL_Log("Failed to create renderer: %s", SDL_GetError());
         SDL_DestroyWindow(window);

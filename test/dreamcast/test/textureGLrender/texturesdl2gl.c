@@ -46,11 +46,11 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* filename) {
     }
     free(tmpbuf);
 
-    // // Set transparent pixel as the pixel at (0,0) for BMPs with no alpha channel
-    // if (image->format->BitsPerPixel == 24 || image->format->BitsPerPixel == 32) {
-    //     Uint32 transparentColor = *(Uint32 *)image->pixels;
-    //     SDL_SetColorKey(image, SDL_TRUE, transparentColor);
-    // }
+    // Set transparent pixel as the pixel at (0,0) for BMPs with no alpha channel
+    if (image->format->BitsPerPixel == 24 || image->format->BitsPerPixel == 32) {
+        Uint32 transparentColor = *(Uint32 *)image->pixels;
+        SDL_SetColorKey(image, SDL_TRUE, transparentColor);
+    }
 
     // Convert the surface to a format compatible with the renderer
     SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(image, SDL_PIXELFORMAT_ARGB1555, 0);
@@ -132,19 +132,25 @@ void DrawScene(SDL_Renderer* renderer) {
     }
 
     int main(int argc, char** argv) {
+            // SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "0");
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL could not initialize! SDL Error: %s\n", SDL_GetError());
             return 1;
         }
 
-        SDL_Window* window = SDL_CreateWindow("SDL2 Texture Demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN|SDL_VIDEO_OPENGL);
+        SDL_Window* window = SDL_CreateWindow("SDL2 Texture Demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN);
         if (!window) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Window could not be created! SDL Error: %s\n", SDL_GetError());
             return 1;
         }
 
-        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-        SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        // SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+        // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+            // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+    // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Set for DMA mode
+    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
+    // SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE| SDL_RENDERER_PRESENTVSYNC);    
+    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);     
         if (!renderer) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Renderer could not be created! SDL Error: %s\n", SDL_GetError());
             return 1;

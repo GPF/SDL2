@@ -41,6 +41,7 @@
 #include "SDL_mouse.h"
 #include "../SDL_sysvideo.h"
 #include "../SDL_pixels_c.h"
+#include "SDL_hints.h"
 #include "../../events/SDL_events_c.h"
 
 #include "SDL_dreamcastvideo.h"
@@ -199,9 +200,9 @@ int DREAMCAST_VideoInit(_THIS) {
     int width = 640, height = 480; // Default to 640x480, modify based on requirements
     int bpp = 32;  // Bits per pixel
     Uint32 Rmask, Gmask, Bmask;
-
+    
     SDL_zero(current_mode);
-
+    
     // Determine if we are in 60Hz or 50Hz mode based on cable type and region
     if (!vid_check_cable()) {
         __sdl_dc_is_60hz = 1; // 60Hz for VGA
@@ -274,13 +275,18 @@ int DREAMCAST_VideoInit(_THIS) {
     SDL_AddDisplayMode(&display, &current_mode);
     SDL_AddVideoDisplay(&display, SDL_TRUE);
 
+    SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO"); // Default video mode
+    SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1"); // Default double buffering
+
+    disp_mode |= DM_MULTIBUFFER; // Enable double buffering
+    SDL_Log("SDL2 Double Buffer enabled");    
+    
     // Set the mode using KOS
     vid_set_mode(disp_mode, pixel_mode);
 
     SDL_Log("SDL2 Dreamcast video initialized.");
     return 1; // Success
 }
-
 
 void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display) {
     SDL_DisplayMode mode;
@@ -368,6 +374,12 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
             return -1;
     }
 
+    // Check for double buffering hint
+    const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
+    if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
+        disp_mode |= DM_MULTIBUFFER; // Enable double buffering
+        SDL_Log("SDL2 Double Buffer enabled");
+    }
     // Set the video mode using KOS (no return value handling)
     vid_set_mode(disp_mode, pixel_mode); // Assuming this function works fine without return checks
 

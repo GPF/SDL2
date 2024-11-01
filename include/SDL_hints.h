@@ -2192,6 +2192,18 @@ extern "C" {
 #define SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC "SDL_AUDIO_DIRECT_BUFFER_ACCESS_DC"
 
 /**
+ * \brief Hint that controls the video rendering mode for Dreamcast.
+ *
+ * This hint allows the selection of video rendering modes specific to Dreamcast, 
+ * enabling either direct framebuffer access (no DMA) or DMA-driven video rendering.
+ * This choice can impact the performance and method of updating the display.
+ *
+ * - "SDL_DC_DIRECT_VIDEO": Uses direct framebuffer access without DMA.
+ * - "SDL_DC_DMA_VIDEO": Uses DMA for transferring video data (default).
+ */
+#define SDL_HINT_DC_VIDEO_MODE "SDL_DC_VIDEO_MODE"
+
+/**
  * A variable controlling whether the Android / tvOS remotes should be listed
  * as joystick devices, instead of sending keyboard events.
  *

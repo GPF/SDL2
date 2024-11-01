@@ -1054,7 +1054,9 @@ static int SW_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
 
     /* Reset the vsync hint if we set it above */
     if (no_hint_set) {
+#ifndef __DREAMCAST__
         SDL_SetHint(SDL_HINT_RENDER_VSYNC, "");
+#endif
     }
 
     if (!surface) {

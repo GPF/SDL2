@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 from pathlib import Path
@@ -14,12 +14,11 @@ def determine_project() -> str:
     match = next(re.finditer(r"project\((?P<project>[a-zA-Z0-9_]+)\s+", text, flags=re.M))
     project_with_version = match["project"]
     project, _ = re.subn("([^a-zA-Z_])", "", project_with_version)
-    return project
+    return f"libsdl-org/{project}"
 
 
 def main():
-    project = determine_project()
-    default_remote = f"libsdl-org/{project}"
+    default_remote = determine_remote()
 
     current_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 

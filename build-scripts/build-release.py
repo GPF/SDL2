@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -21,11 +22,11 @@ import textwrap
 import typing
 import zipfile
 
-logger = logging.getLogger(__name__)
 
 
 VcArchDevel = collections.namedtuple("VcArchDevel", ("dll", "pdb", "imp", "main", "test"))
 GIT_HASH_FILENAME = ".git-hash"
+REVISION_TXT = "REVISION.txt"
 
 ANDROID_AVAILABLE_ABIS = [
     "armeabi-v7a",
@@ -532,6 +533,7 @@ def main(argv=None) -> int:
         if args.commit != archive_commit:
             logger.warning("Commit argument is %s, but archive commit is %s. Using %s.", args.commit, archive_commit, archive_commit)
         args.commit = archive_commit
+        revision = (args.root / REVISION_TXT).read_text().strip()
     else:
         args.commit = executer.run(["git", "rev-parse", args.commit], stdout=True, dry_out="e5812a9fd2cda317b503325a702ba3c1c37861d9").stdout.strip()
         logger.info("Using commit %s", args.commit)
@@ -539,6 +541,7 @@ def main(argv=None) -> int:
     releaser = Releaser(
         project=args.project,
         commit=args.commit,
+        revision=revision,
         root=args.root,
         dist_path=args.dist_path,
         executer=executer,
@@ -559,6 +562,7 @@ def main(argv=None) -> int:
     with section_printer.group("Arguments"):
         print(f"project          = {args.project}")
         print(f"version          = {releaser.version}")
+        print(f"revision         = {revision}")
         print(f"commit           = {args.commit}")
         print(f"out              = {args.dist_path}")
         print(f"actions          = {args.actions}")

@@ -282,62 +282,311 @@ class Releaser:
     def git_hash_data(self) -> bytes:
         return f"{self.commit}\n".encode()
 
-    def _tar_add_git_hash(self, tar_object: tarfile.TarFile, root: typing.Optional[str]=None, time: typing.Optional[datetime.datetime]=None):
-        if not time:
-            time = datetime.datetime(year=2024, month=4, day=1)
-        path = GIT_HASH_FILENAME
-        if root:
-            path = f"{root}/{path}"
-
-        tar_info = tarfile.TarInfo(path)
-        tar_info.mode = 0o100644
-        tar_info.size = len(self.git_hash_data)
-        tar_info.mtime = int(time.timestamp())
-        tar_object.addfile(tar_info, fileobj=io.BytesIO(self.git_hash_data))
-
-    def _zip_add_git_hash(self, zip_file: zipfile.ZipFile, root: typing.Optional[str]=None, time: typing.Optional[datetime.datetime]=None):
-        if not time:
-            time = datetime.datetime(year=2024, month=4, day=1)
-        path = GIT_HASH_FILENAME
-        if root:
-            path = f"{root}/{path}"
-
-        file_data_time = (time.year, time.month, time.day, time.hour, time.minute, time.second)
-        zip_info = zipfile.ZipInfo(filename=path, date_time=file_data_time)
-        zip_info.external_attr = 0o100644 << 16
-        zip_info.compress_type = zipfile.ZIP_DEFLATED
-        zip_file.writestr(zip_info, data=self.git_hash_data)
-
     def create_mingw_archives(self) -> None:
         build_type = "Release"
-        mingw_archs = ("i686", "x86_64")
         build_parent_dir = self.root / "build-mingw"
+        ARCH_TO_GNU_ARCH = {
+            # "arm64": "aarch64",
+            "x86": "i686",
+            "x64": "x86_64",
+        }
+        ARCH_TO_TRIPLET = {
+            # "arm64": "aarch64-w64-mingw32",
+            "x86": "i686-w64-mingw32",
+            "x64": "x86_64-w64-mingw32",
+        }
 
+        new_env = dict(os.environ)
+
+        cmake_prefix_paths = []
+        mingw_deps_path = self.deps_path / "mingw-deps"
+
+        if "dependencies" in self.release_info["mingw"]:
+            shutil.rmtree(mingw_deps_path, ignore_errors=True)
+            mingw_deps_path.mkdir()
+
+            for triplet in ARCH_TO_TRIPLET.values():
+                (mingw_deps_path / triplet).mkdir()
+
+            def extract_filter(member: tarfile.TarInfo, path: str, /):
+                if member.name.startswith("SDL"):
+                    member.name = "/".join(Path(member.name).parts[1:])
+                return member
+            for dep in self.release_info.get("dependencies", {}):
+                extract_path = mingw_deps_path / f"extract-{dep}"
+                extract_path.mkdir()
+                with chdir(extract_path):
+                    tar_path = self.deps_path / glob.glob(self.release_info["mingw"]["dependencies"][dep]["artifact"], root_dir=self.deps_path)[0]
+                    logger.info("Extracting %s to %s", tar_path, mingw_deps_path)
+                    assert tar_path.suffix in (".gz", ".xz")
+                    with tarfile.open(tar_path, mode=f"r:{tar_path.suffix.strip('.')}") as tarf:
+                        tarf.extractall(filter=extract_filter)
+                    for arch, triplet in ARCH_TO_TRIPLET.items():
+                        install_cmd = self.release_info["mingw"]["dependencies"][dep]["install-command"]
+                        extra_configure_data = {
+                            "ARCH": ARCH_TO_GNU_ARCH[arch],
+                            "TRIPLET": triplet,
+                            "PREFIX": str(mingw_deps_path / triplet),
+                        }
+                        install_cmd = configure_text(install_cmd, context=self.get_context(extra_configure_data))
+                        self.executer.run(shlex.split(install_cmd), cwd=str(extract_path))
+
+            dep_binpath = mingw_deps_path / triplet / "bin"
+            assert dep_binpath.is_dir(), f"{dep_binpath} for PATH should exist"
+            dep_pkgconfig = mingw_deps_path / triplet / "lib/pkgconfig"
+            assert dep_pkgconfig.is_dir(), f"{dep_pkgconfig} for PKG_CONFIG_PATH should exist"
+
+            new_env["PATH"] = os.pathsep.join([str(dep_binpath), new_env["PATH"]])
+            new_env["PKG_CONFIG_PATH"] = str(dep_pkgconfig)
+            cmake_prefix_paths.append(mingw_deps_path)
+
+        new_env["CFLAGS"] = f"-O2 -ffile-prefix-map={self.root}=/src/{self.project}"
+        new_env["CXXFLAGS"] = f"-O2 -ffile-prefix-map={self.root}=/src/{self.project}"
+
+        assert any(system in self.release_info["mingw"] for system in ("autotools", "cmake"))
+        assert not all(system in self.release_info["mingw"] for system in ("autotools", "cmake"))
+
+        mingw_archs = set()
+        arc_root = f"{self.project}-{self.version}"
+        archive_file_tree = ArchiveFileTree()
+
+        if "autotools" in self.release_info["mingw"]:
+            for arch in self.release_info["mingw"]["autotools"]["archs"]:
+                triplet = ARCH_TO_TRIPLET[arch]
+                new_env["CC"] = f"{triplet}-gcc"
+                new_env["CXX"] = f"{triplet}-g++"
+                new_env["RC"] = f"{triplet}-windres"
+
+                assert arch not in mingw_archs
+                mingw_archs.add(arch)
+
+                build_path = build_parent_dir / f"build-{triplet}"
+                install_path = build_parent_dir / f"install-{triplet}"
+                shutil.rmtree(install_path, ignore_errors=True)
+                build_path.mkdir(parents=True, exist_ok=True)
+                context = self.get_context({
+                    "ARCH": arch,
+                    "DEP_PREFIX": str(mingw_deps_path / triplet),
+                })
+                extra_args = configure_text_list(text_list=self.release_info["mingw"]["autotools"]["args"], context=context)
+
+                with self.section_printer.group(f"Configuring MinGW {triplet} (autotools)"):
+                    assert "@" not in " ".join(extra_args), f"@ should not be present in extra arguments ({extra_args})"
+                    self.executer.run([
+                        self.root / "configure",
+                        f"--prefix={install_path}",
+                        f"--includedir=${{prefix}}/include",
+                        f"--libdir=${{prefix}}/lib",
+                        f"--bindir=${{prefix}}/bin",
+                        f"--exec-prefix=${{prefix}}/bin",
+                        f"--host={triplet}",
+                        f"--build=x86_64-none-linux-gnu",
+                        "CFLAGS=-O2",
+                        "CXXFLAGS=-O2",
+                        "LDFLAGS=-Wl,-s",
+                    ] + extra_args, cwd=build_path, env=new_env)
+                with self.section_printer.group(f"Build MinGW {triplet} (autotools)"):
+                    self.executer.run(["make", "V=1", f"-j{self.cpu_count}"], cwd=build_path, env=new_env)
+                with self.section_printer.group(f"Install MinGW {triplet} (autotools)"):
+                    self.executer.run(["make", "install"], cwd=build_path, env=new_env)
+                archive_file_tree.add_directory_tree(arc_dir=arc_join(arc_root, triplet), path=install_path, time=self.arc_time)
+
+                print("Recording arch-dependent extra files for MinGW development archive ...")
+                extra_context = {
+                    "TRIPLET": ARCH_TO_TRIPLET[arch],
+                }
+                archive_file_tree.add_file_mapping(arc_dir=arc_root, file_mapping=self.release_info["mingw"]["autotools"].get("files", {}), file_mapping_root=self.root, context=self.get_context(extra_context=extra_context), time=self.arc_time)
+
+        if "cmake" in self.release_info["mingw"]:
+            assert self.release_info["mingw"]["cmake"]["shared-static"] in ("args", "both")
+            for arch in self.release_info["mingw"]["cmake"]["archs"]:
+                triplet = ARCH_TO_TRIPLET[arch]
+                new_env["CC"] = f"{triplet}-gcc"
+                new_env["CXX"] = f"{triplet}-g++"
+                new_env["RC"] = f"{triplet}-windres"
+
+                assert arch not in mingw_archs
+                mingw_archs.add(arch)
+
+                context = self.get_context({
+                    "ARCH": arch,
+                    "DEP_PREFIX": str(mingw_deps_path / triplet),
+                })
+                extra_args = configure_text_list(text_list=self.release_info["mingw"]["cmake"]["args"], context=context)
+
+                build_path = build_parent_dir / f"build-{triplet}"
+                install_path = build_parent_dir / f"install-{triplet}"
+                shutil.rmtree(install_path, ignore_errors=True)
+                build_path.mkdir(parents=True, exist_ok=True)
+                if self.release_info["mingw"]["cmake"]["shared-static"] == "args":
+                    args_for_shared_static = ([], )
+                elif self.release_info["mingw"]["cmake"]["shared-static"] == "both":
+                    args_for_shared_static = (["-DBUILD_SHARED_LIBS=ON"], ["-DBUILD_SHARED_LIBS=OFF"])
+                for arg_for_shared_static in args_for_shared_static:
+                    with self.section_printer.group(f"Configuring MinGW {triplet} (CMake)"):
+                        assert "@" not in " ".join(extra_args), f"@ should not be present in extra arguments ({extra_args})"
+                        self.executer.run([
+                            f"cmake",
+                            f"-S", str(self.root), "-B", str(build_path),
+                            f"-DCMAKE_BUILD_TYPE={build_type}",
+                            f'''-DCMAKE_C_FLAGS="-ffile-prefix-map={self.root}=/src/{self.project}"''',
+                            f'''-DCMAKE_CXX_FLAGS="-ffile-prefix-map={self.root}=/src/{self.project}"''',
+                            f"-DCMAKE_PREFIX_PATH={mingw_deps_path / triplet}",
+                            f"-DCMAKE_INSTALL_PREFIX={install_path}",
+                            f"-DCMAKE_INSTALL_INCLUDEDIR=include",
+                            f"-DCMAKE_INSTALL_LIBDIR=lib",
+                            f"-DCMAKE_INSTALL_BINDIR=bin",
+                            f"-DCMAKE_INSTALL_DATAROOTDIR=share",
+                            f"-DCMAKE_TOOLCHAIN_FILE={self.root}/build-scripts/cmake-toolchain-mingw64-{ARCH_TO_GNU_ARCH[arch]}.cmake",
+                            f"-G{self.cmake_generator}",
+                        ] + extra_args + ([] if self.fast else ["--fresh"]) + arg_for_shared_static, cwd=build_path, env=new_env)
+                    with self.section_printer.group(f"Build MinGW {triplet} (CMake)"):
+                        self.executer.run(["cmake", "--build", str(build_path), "--verbose", "--config", build_type], cwd=build_path, env=new_env)
+                    with self.section_printer.group(f"Install MinGW {triplet} (CMake)"):
+                        self.executer.run(["cmake", "--install", str(build_path)], cwd=build_path, env=new_env)
+                archive_file_tree.add_directory_tree(arc_dir=arc_join(arc_root, triplet), path=install_path, time=self.arc_time)
+
+                print("Recording arch-dependent extra files for MinGW development archive ...")
+                extra_context = {
+                    "TRIPLET": ARCH_TO_TRIPLET[arch],
+                }
+                archive_file_tree.add_file_mapping(arc_dir=arc_root, file_mapping=self.release_info["mingw"]["cmake"].get("files", {}), file_mapping_root=self.root, context=self.get_context(extra_context=extra_context), time=self.arc_time)
+                print("... done")
+
+        print("Recording extra files for MinGW development archive ...")
+        archive_file_tree.add_file_mapping(arc_dir=arc_root, file_mapping=self.release_info["mingw"].get("files", {}), file_mapping_root=self.root, context=self.get_context(), time=self.arc_time)
+        print("... done")
+
+        print("Creating zip/tgz/txz development archives ...")
         zip_path = self.dist_path / f"{self.project}-devel-{self.version}-mingw.zip"
-        tar_exts = ("gz", "xz")
-        tar_paths = { ext: self.dist_path / f"{self.project}-devel-{self.version}-mingw.tar.{ext}" for ext in tar_exts}
+        tgz_path = self.dist_path / f"{self.project}-devel-{self.version}-mingw.tar.gz"
+        txz_path = self.dist_path / f"{self.project}-devel-{self.version}-mingw.tar.xz"
 
-        arch_install_paths = {}
-        arch_files = {}
+        with Archiver(zip_path=zip_path, tgz_path=tgz_path, txz_path=txz_path) as archiver:
+            archive_file_tree.add_to_archiver(archive_base="", archiver=archiver)
+            archiver.add_git_hash(arcdir=arc_root, commit=self.commit, time=self.arc_time)
+        print("... done")
 
-        for arch in mingw_archs:
-            build_path = build_parent_dir / f"build-{arch}"
-            install_path = build_parent_dir / f"install-{arch}"
-            arch_install_paths[arch] = install_path
-            shutil.rmtree(install_path, ignore_errors=True)
-            build_path.mkdir(parents=True, exist_ok=True)
-            with self.section_printer.group(f"Configuring MinGW {arch}"):
-                self.executer.run([
-                    "cmake", "-S", str(self.root), "-B", str(build_path),
-                    "--fresh",
+        self.artifacts["mingw-devel-zip"] = zip_path
+        self.artifacts["mingw-devel-tar-gz"] = tgz_path
+        self.artifacts["mingw-devel-tar-xz"] = txz_path
+
+    def _detect_android_api(self, android_home: str) -> typing.Optional[int]:
+        platform_dirs = list(Path(p) for p in glob.glob(f"{android_home}/platforms/android-*"))
+        re_platform = re.compile("android-([0-9]+)")
+        platform_versions = []
+        for platform_dir in platform_dirs:
+            logger.debug("Found Android Platform SDK: %s", platform_dir)
+            if m:= re_platform.match(platform_dir.name):
+                platform_versions.append(int(m.group(1)))
+        platform_versions.sort()
+        logger.info("Available platform versions: %s", platform_versions)
+        platform_versions = list(filter(lambda v: v >= self._android_api_minimum, platform_versions))
+        logger.info("Valid platform versions (>=%d): %s", self._android_api_minimum, platform_versions)
+        if not platform_versions:
+            return None
+        android_api = platform_versions[0]
+        logger.info("Selected API version %d", android_api)
+        return android_api
+
+    def _get_prefab_json_text(self) -> str:
+        return textwrap.dedent(f"""\
+            {{
+                "schema_version": 2,
+                "name": "{self.project}",
+                "version": "{self.version}",
+                "dependencies": []
+            }}
+        """)
+
+    def _get_prefab_module_json_text(self, library_name: typing.Optional[str], export_libraries: list[str]) -> str:
+        for lib in export_libraries:
+            assert isinstance(lib, str), f"{lib} must be a string"
+        module_json_dict = {
+            "export_libraries": export_libraries,
+        }
+        if library_name:
+            module_json_dict["library_name"] = f"lib{library_name}"
+        return json.dumps(module_json_dict, indent=4)
+
+    @property
+    def _android_api_minimum(self):
+        return self.release_info["android"]["api-minimum"]
+
+    @property
+    def _android_api_target(self):
+        return self.release_info["android"]["api-target"]
+
+    @property
+    def _android_ndk_minimum(self):
+        return self.release_info["android"]["ndk-minimum"]
+
+    def _get_prefab_abi_json_text(self, abi: str, cpp: bool, shared: bool) -> str:
+        abi_json_dict = {
+            "abi": abi,
+            "api": self._android_api_minimum,
+            "ndk": self._android_ndk_minimum,
+            "stl": "c++_shared" if cpp else "none",
+            "static": not shared,
+        }
+        return json.dumps(abi_json_dict, indent=4)
+
+    def _get_android_manifest_text(self) -> str:
+        return textwrap.dedent(f"""\
+            <manifest
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                package="org.libsdl.android.{self.project}" android:versionCode="1"
+                android:versionName="1.0">
+                <uses-sdk android:minSdkVersion="{self._android_api_minimum}"
+                          android:targetSdkVersion="{self._android_api_target}" />
+            </manifest>
+        """)
+
+    def create_android_archives(self, android_api: int, android_home: Path, android_ndk_home: Path) -> None:
+        cmake_toolchain_file = Path(android_ndk_home) / "build/cmake/android.toolchain.cmake"
+        if not cmake_toolchain_file.exists():
+            logger.error("CMake toolchain file does not exist (%s)", cmake_toolchain_file)
+            raise SystemExit(1)
+        aar_path =  self.dist_path / f"{self.project}-{self.version}.aar"
+        android_abis = self.release_info["android"]["abis"]
+        java_jars_added = False
+        module_data_added = False
+        android_deps_path = self.deps_path / "android-deps"
+        shutil.rmtree(android_deps_path, ignore_errors=True)
+
+        for dep, depinfo in self.release_info["android"].get("dependencies", {}).items():
+            android_aar = self.deps_path / glob.glob(depinfo["artifact"], root_dir=self.deps_path)[0]
+            with self.section_printer.group(f"Extracting Android dependency {dep} ({android_aar.name})"):
+                self.executer.run([sys.executable, str(android_aar), "-o", str(android_deps_path)])
+
+        for module_name, module_info in self.release_info["android"]["modules"].items():
+            assert "type" in module_info and module_info["type"] in ("interface", "library"), f"module {module_name} must have a valid type"
+
+        archive_file_tree = ArchiveFileTree()
+
+        for android_abi in android_abis:
+            with self.section_printer.group(f"Building for Android {android_api} {android_abi}"):
+                build_dir = self.root / "build-android" / f"{android_abi}-build"
+                install_dir = self.root / "install-android" / f"{android_abi}-install"
+                shutil.rmtree(install_dir, ignore_errors=True)
+                assert not install_dir.is_dir(), f"{install_dir} should not exist prior to build"
+                build_type = "Release"
+                cmake_args = [
+                    "cmake",
+                    "-S", str(self.root),
+                    "-B", str(build_dir),
                     f'''-DCMAKE_C_FLAGS="-ffile-prefix-map={self.root}=/src/{self.project}"''',
                     f'''-DCMAKE_CXX_FLAGS="-ffile-prefix-map={self.root}=/src/{self.project}"''',
-                    "-DSDL_SHARED=ON",
-                    "-DSDL_STATIC=ON",
-                    "-DSDL_DISABLE_INSTALL_DOCS=ON",
-                    "-DSDL_TEST_LIBRARY=ON",
-                    "-DSDL_TESTS=OFF",
-                    "-DCMAKE_INSTALL_BINDIR=bin",
+                    f"-DCMAKE_TOOLCHAIN_FILE={cmake_toolchain_file}",
+                    f"-DCMAKE_PREFIX_PATH={str(android_deps_path)}",
+                    f"-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=BOTH",
+                    f"-DANDROID_HOME={android_home}",
+                    f"-DANDROID_PLATFORM={android_api}",
+                    f"-DANDROID_ABI={android_abi}",
+                    "-DCMAKE_POSITION_INDEPENDENT_CODE=ON",
+                    f"-DCMAKE_INSTALL_PREFIX={install_dir}",
+                    "-DCMAKE_INSTALL_INCLUDEDIR=include ",
+                    "-DCMAKE_INSTALL_LIBDIR=lib",
                     "-DCMAKE_INSTALL_DATAROOTDIR=share",
                     "-DCMAKE_INSTALL_INCLUDEDIR=include",
                     "-DCMAKE_INSTALL_LIBDIR=lib",

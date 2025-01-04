@@ -207,6 +207,7 @@ int DREAMCAST_VideoInit(_THIS) {
     int height = 480;    
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
     if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
+        SDL_Log("Initializing SDL_DC_TEXTURED_VIDEO");
         width = 320;
         height = 240;
     }
@@ -265,6 +266,9 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
 
     // Determine the appropriate display mode
     if (__sdl_dc_is_60hz) {
+#ifdef SDL_VIDEO_OPENGL
+    disp_mode = DM_640x480;
+#else    
         if (mode->w == 320 && mode->h == 240) {
             disp_mode = DM_320x240;
         } else if (mode->w == 640 && mode->h == 480) {
@@ -272,14 +276,19 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
         } else if (mode->w == 768 && mode->h == 480) {
             disp_mode = DM_768x480;
         }
-    } else {
+    }
+#endif    
+     else {
+#ifdef SDL_VIDEO_OPENGL
+    disp_mode = DM_640x480_PAL_IL;
+#else          
         if (mode->w == 320 && mode->h == 240) {
             disp_mode = DM_320x240_PAL;
         } else if (mode->w == 640 && mode->h == 480) {
             disp_mode = DM_640x480_PAL_IL;
         }
     }
-
+#endif
     if (disp_mode < 0) {
         SDL_SetError("Unsupported display mode");
         return -1;

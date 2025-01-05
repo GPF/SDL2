@@ -268,6 +268,7 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
     if (__sdl_dc_is_60hz) {
 #ifdef SDL_VIDEO_OPENGL
     disp_mode = DM_640x480;
+    }
 #else    
         if (mode->w == 320 && mode->h == 240) {
             disp_mode = DM_320x240;
@@ -278,9 +279,11 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
         }
     }
 #endif    
+    
      else {
 #ifdef SDL_VIDEO_OPENGL
     disp_mode = DM_640x480_PAL_IL;
+     }
 #else          
         if (mode->w == 320 && mode->h == 240) {
             disp_mode = DM_320x240_PAL;
@@ -289,6 +292,7 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
         }
     }
 #endif
+    
     if (disp_mode < 0) {
         SDL_SetError("Unsupported display mode");
         return -1;

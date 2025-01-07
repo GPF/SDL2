@@ -8,6 +8,7 @@ BUILD_DIR="${PWD}/build"
 ENABLE_OPENGL=ON
 ENABLE_SDL_TESTS=ON
 ENABLE_PTHREADS=ON
+ENABLE_UNIX_TIMERS=ON
 BUILD_JOBS=$(nproc) # Use all available CPU cores by default
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -18,6 +19,8 @@ case $1 in
         --disable-sdl-tests) ENABLE_SDL_TESTS=OFF ;;
         --enable-pthreads)  ENABLE_PTHREADS=ON ;;
         --disable-pthreads) ENABLE_PTHREADS=OFF ;;
+        --enable-unix-timers)  ENABLE_UNIX_TIMERS=ON ;;
+        --disable-unix-timers) ENABLE_UNIX_TIMERS=OFF ;;        
         clean) 
             echo "Cleaning build directory..."
             cd "$BUILD_DIR"
@@ -59,6 +62,12 @@ if [ "$ENABLE_PTHREADS" == "ON" ]; then
 else
     CMAKE_OPTS="$CMAKE_OPTS -DSDL_PTHREADS=OFF"
 fi
+if [ "$ENABLE_UNIX_TIMERS" == "ON" ]; then
+    CMAKE_OPTS="$CMAKE_OPTS -DSDL_TIMER_UNIX=ON"
+else
+    CMAKE_OPTS="$CMAKE_OPTS -DSDL_TIMER_UNIX=OFF"
+fi
+
 CMAKE_OPTS="$CMAKE_OPTS"
 # Run CMake to configure the project with the selected options
 cmake -DCMAKE_TOOLCHAIN_FILE="$KOS_CMAKE_TOOLCHAIN" \

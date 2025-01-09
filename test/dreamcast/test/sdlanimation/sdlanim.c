@@ -59,7 +59,9 @@ int main(int argc, char* argv[])
     int currentDirection = DIR_RIGHT;
     int animationFlip = 0;
     SDL_Rect spritePosition;
-
+    // SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1");
+    // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+    // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO");
     /* initialize SDL */
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
         SDL_Log("Failed to initialize SDL: %s", SDL_GetError());
@@ -91,9 +93,9 @@ int main(int argc, char* argv[])
     // Set SDL hint for the renderer
             // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
     // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Set for DMA mode
-    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
-    // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE| SDL_RENDERER_PRESENTVSYNC);
-    renderer = SDL_CreateRenderer(window, -1, 0);
+    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "opengl");    
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    // renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) {
         SDL_Log("Failed to create renderer: %s", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -110,12 +112,38 @@ int main(int argc, char* argv[])
         SDL_Quit();
         return 1;
     }
-    // SDL_SetColorKey(temp, SDL_TRUE, SDL_MapRGB(temp->format, 255, 0, 255));
+    SDL_SetColorKey(temp, SDL_TRUE, *(Uint32 *)temp->pixels);
+
     // spriteTexture = SDL_CreateTextureFromSurface(renderer, temp);
     SDL_Surface* converted_surface1 = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB8888, 0); 
+//     // Uint32 magenta = SDL_MapRGBA(converted_surface1->format, 255, 0, 255,0);
+Uint32 *pixels = (Uint32 *)converted_surface1->pixels;
+Uint32 pixel0Color = pixels[0] & 0x00FFFFFF; // Extract only RGB from pixel 0
+// Loop through each pixel to set alpha based on pixel 0's color
+// for (int y = 0; y < converted_surface1->h; ++y) {
+//     for (int x = 0; x < converted_surface1->w; ++x) {
+//         int pixelIndex = y * converted_surface1->w + x;
+//         if ((pixels[pixelIndex] & 0x00FFFFFF) == pixel0Color) {
+//             // Set alpha to 0 for transparency
+//             // printf("setting transparency\n");
+//             pixels[pixelIndex] = (pixels[pixelIndex] & 0x00FFFFFF) | 0xFF000000; 
+//         } else {
+//             // Set alpha to 255 for opacity
+//             pixels[pixelIndex] = (pixels[pixelIndex] & 0x00FFFFFF) | 0xFF000000; 
+//         }
+//     }
+// }
+// Uint32 checkColor = pixel0Color;
+// Uint8 r, g, b, a;
+// SDL_GetRGBA(checkColor, converted_surface1->format, &r, &g, &b, &a);
+// SDL_Log("Pixel 0 after setting to magenta: (R, G, B, A): %d, %d, %d, %d", r, g, b, a);
     spriteTexture = SDL_CreateTextureFromSurface(renderer, converted_surface1);
-    SDL_FreeSurface(temp);
 
+
+    SDL_FreeSurface(temp);
+Uint32 format;
+SDL_QueryTexture(spriteTexture, &format, NULL, NULL, NULL);
+SDL_Log("Sprite texture format: %s", SDL_GetPixelFormatName(format));
     if (!spriteTexture) {
         SDL_Log("Failed to create sprite texture: %s", SDL_GetError());
         SDL_DestroyRenderer(renderer);
@@ -134,8 +162,9 @@ int main(int argc, char* argv[])
         SDL_Quit();
         return 1;
     }
+    // SDL_SetColorKey(temp, SDL_TRUE, SDL_MapRGB(temp->format, 255, 0, 255));
     // grassTexture = SDL_CreateTextureFromSurface(renderer, temp);
-    SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB1555, 0);    
+    SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB8888, 0);    
     grassTexture = SDL_CreateTextureFromSurface(renderer, converted_surface);
     SDL_FreeSurface(temp);
 
@@ -200,7 +229,8 @@ int main(int argc, char* argv[])
 
         /* clear the screen */
         SDL_RenderClear(renderer);
-
+        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        // SDL_SetTextureBlendMode(grassTexture, SDL_BLENDMODE_NONE);
         /* draw the background */
         for (int x = 0; x < SCREEN_WIDTH / GRASS_SIZE; x++) {
             for (int y = 0; y < SCREEN_HEIGHT / GRASS_SIZE; y++) {
@@ -208,7 +238,9 @@ int main(int argc, char* argv[])
                 SDL_RenderCopy(renderer, grassTexture, NULL, &position);
             }
         }
-    // SDL_SetTextureBlendMode(spriteTexture, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE );
+        SDL_SetTextureBlendMode(spriteTexture, SDL_BLENDMODE_BLEND);     
+        // SDL_SetTextureAlphaMod(spriteTexture, pixel0Color); 
         /* Draw the selected image of the sprite at the right position */
         {
             SDL_Rect spriteImage;

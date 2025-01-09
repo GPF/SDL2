@@ -161,7 +161,10 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         h = SDL_powerof2(h);         
     } else {
         // Default to the original bit depth from the display mode
-        target_bpp = SDL_BITSPERPIXEL(surface_format);  // Maintain the original depth if not textured mode
+        target_bpp = SDL_BITSPERPIXEL(surface_format) ;  // Maintain the original depth if not textured mode
+        if (target_bpp == 24) {
+            target_bpp = 32;
+        }
     }    
     surface->pitch = w * (target_bpp / 8);
 
@@ -220,6 +223,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     *format = surface_format;
     *pixels = surface->pixels;
     *pitch = surface->pitch;
+    SDL_Log("SDL_DREAMCAST_CreateWindowFramebuffer: %d x %d, %d bpp", w, h, target_bpp);
     return 0;
 }
 

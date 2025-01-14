@@ -60,7 +60,7 @@ static void sdl_dc_blit_textured(void)
     pvr_dr_state_t dr_state;
 
     if (SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, SDL_TRUE)) {
-            vid_waitvbl();
+            pvr_wait_ready();
     }
             // SDL_Log("sdl_dc_blit_textured");
     pvr_scene_begin();
@@ -206,13 +206,15 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         sdl_dc_v1 = 0.0f;
         sdl_dc_u2 = (float)sdl_dc_width / (float)sdl_dc_wtex;
         sdl_dc_v2 = (float)sdl_dc_height / (float)sdl_dc_htex;
-        SDL_Log("Inited SDL_DC_TEXTURED_VIDEO");
+
         if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
+            SDL_Log("Inited SDL_DC_TEXTURED_VIDEO with double buffer");
 			sdl_dc_memfreed = calloc(64+(sdl_dc_wtex*sdl_dc_htex*(sdl_dc_bpp>>3)),1);
 			sdl_dc_buftex = (unsigned short *)(((((unsigned)sdl_dc_memfreed)+32)/32)*32);            
             surface->pixels = (void *)sdl_dc_buftex;
         }
         else {
+            SDL_Log("Inited SDL_DC_TEXTURED_VIDEO without double buffer");
 			sdl_dc_buftex = 0;
 			surface->pixels = sdl_dc_memtex;
 		}        
@@ -226,7 +228,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     SDL_Log("SDL_DREAMCAST_CreateWindowFramebuffer: %d x %d, %d bpp", w, h, target_bpp);
     return 0;
 }
-
+int fb=0;
 int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects)
 {
     SDL_Surface *surface;
@@ -234,6 +236,8 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
     int w, h, pitch, i;
     Uint32 *src_row;
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
+    SDL_bool double_buffer_hint = SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE);
+    SDL_bool vsync_hint = SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, SDL_TRUE);
     surface = (SDL_Surface *)SDL_GetWindowData(window, DREAMCAST_SURFACE);
     if (!surface) {
         return SDL_SetError("Couldn't find framebuffer surface for window");
@@ -244,8 +248,15 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
     h = surface->h;
     pitch = surface->pitch;
 
+if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
+    if (double_buffer_hint) {
     // Assuming vram_l points to the start of the framebuffer
+    if (fb<6){fb =+1;}
+    else{fb=0;}
+    vid_set_fb(fb);
+    }
     dst = (Uint32 *)vram_l;
+}
     src_row = (Uint32 *)surface->pixels;
 
     // Update the entire framebuffer in one go if no specific rectangles are provided
@@ -279,17 +290,19 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
 
     if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") != 0) {
         // Check SDL hints before synchronization
-        const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
-        if (double_buffer_hint && SDL_strcasecmp(double_buffer_hint, "1") == 0) {
-            if (SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, SDL_TRUE)) {
+            if (vsync_hint) {
                 vid_waitvbl();
                 // SDL_Log("SDL_HINT_RENDER_VSYNC");
             }
-            if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") != 0) {
-                vid_flip(-1);
-                // SDL_Log("SDL_HINT_VIDEO_DOUBLE_BUFFER");
+            if (double_buffer_hint) {
+                if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
+                    // SDL_Log("SDL_HINT_VIDEO_DOUBLE_BUFFER");
+                if (fb<6){fb =+1;}
+                else{fb=0;}
+                vid_flip(fb);
+                }
+                
             }
-        }
     // fb = !fb;
     }
 

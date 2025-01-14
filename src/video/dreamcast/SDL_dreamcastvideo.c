@@ -214,7 +214,7 @@ int DREAMCAST_VideoInit(_THIS) {
     SDL_zero(current_mode);
 
     // Initialize the default display mode
-    current_mode.format = SDL_PIXELFORMAT_RGB565;
+    current_mode.format = SDL_PIXELFORMAT_ARGB1555;
     current_mode.w = width;
     current_mode.h = height;
     current_mode.refresh_rate = 60; // Assume 60Hz for simplicity
@@ -232,11 +232,12 @@ int DREAMCAST_VideoInit(_THIS) {
         return -1;
     }
     if (video_mode_hint == NULL){
+        SDL_Log("No video mode hint set, defaulting to SDL_DC_DMA_VIDEO mode, with SDL_HINT_VIDEO_DOUBLE_BUFFER enabled");
         SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Default video mode
         SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1"); // Default double buffering
     }
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
-    SDL_Log("SDL2 Dreamcast video initialized: %dx%d, RGB565", width, height);
+    // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+    SDL_Log("SDL2 Dreamcast video initialized: %dx%d, ARGB1555", width, height);
     return 0;
 }
 
@@ -267,14 +268,22 @@ void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display) {
 int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode) {
     int pixel_mode;
     int disp_mode = -1;
-
-#ifndef SDL_VIDEO_OPENGL
-    // Enforce OpenGL requirement for 640x480 if SDL_VIDEO_OPENGL is disabled
-    if (SDL_GetCurrentVideoDriver() && strcmp(SDL_GetCurrentVideoDriver(), "opengl") == 0) {
+    const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
+    const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
+    if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
+        SDL_Log("Setting SDL_DC_TEXTURED_VIDEO mode");
         mode->w = 640;
         mode->h = 480;
     }
+  
+#ifdef SDL_VIDEO_OPENGL
+    // Enforce OpenGL requirement for 640x480 if SDL_VIDEO_OPENGL is disabled
+    // if (SDL_GetCurrentVideoDriver() && strcmp(SDL_GetCurrentVideoDriver(), "opengl") == 0) {
+        mode->w = 640;
+        mode->h = 480;
+    // }
 #endif
+  
 
     // Detect cable and region
     if (!vid_check_cable()) {
@@ -309,9 +318,17 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
         return -1;
     }
 
+    if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
+            SDL_Log("Double Buffer video enabled");
+            if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
+                SDL_Log("Setting SDL_DC_DIRECT_VIDEO mode with double buffer");        
+                disp_mode |= DM_MULTIBUFFER; // Enable double buffering
+            }
+    }  
+
     // Ensure mode->format is set
     if (mode->format == 0) {
-        mode->format = SDL_PIXELFORMAT_RGB565;  // Default pixel format
+        mode->format = SDL_PIXELFORMAT_ARGB1555;  // Default pixel format
     }
 
     // Map SDL pixel format to Dreamcast pixel mode

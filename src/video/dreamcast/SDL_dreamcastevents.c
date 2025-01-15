@@ -26,13 +26,15 @@
 #include "../../events/SDL_events_c.h"
 #include "../../events/SDL_keyboard_c.h"
 #include "SDL_events.h"
+#include "SDL_timer.h"
+#include "SDL_mouse.h"
 #include <kos.h>
 #include "SDL_dreamcastvideo.h"
 #include "SDL_dreamcastevents_c.h"
 
 #define MIN_FRAME_UPDATE 16
 
-// extern unsigned __sdl_dc_mouse_shift;
+extern unsigned int __sdl_dc_mouse_shift;
 
 const static unsigned short sdl_key[] = {
     /*0*/    0, 0, 0, 0, SDL_SCANCODE_A, SDL_SCANCODE_B, SDL_SCANCODE_C, SDL_SCANCODE_D, SDL_SCANCODE_E, SDL_SCANCODE_F, 
@@ -62,57 +64,77 @@ const static unsigned short sdl_shift[] = {
     SDL_SCANCODE_RCTRL, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_RALT, 0 /* S2 */,
 };
 
-
-
-#define MOUSE_WHEELUP    (1<<4)
-#define MOUSE_WHEELDOWN  (1<<5)
+#define MOUSE_LEFTBUTTON    1
+#define MOUSE_RIGHTBUTTON   2
+#define MOUSE_SIDEBUTTON    3
+// Remove SDL_BUTTON_WHEELUP and SDL_BUTTON_WHEELDOWN since they are incorrect
+// We'll handle the wheel events separately.
 
 const static char sdl_mousebtn[] = {
-    MOUSE_LEFTBUTTON,
-    MOUSE_RIGHTBUTTON,
-    MOUSE_SIDEBUTTON,
-    MOUSE_WHEELUP,
-    MOUSE_WHEELDOWN
+    SDL_BUTTON_LEFT,        // Left button maps to SDL_BUTTON_LEFT
+    SDL_BUTTON_RIGHT,       // Right button maps to SDL_BUTTON_RIGHT
+    MOUSE_LEFTBUTTON,       // Left button (No longer mapped to wheel)
+    MOUSE_RIGHTBUTTON       // Right button (No longer mapped to wheel)
 };
 
 static void mouse_update(void) {
-    maple_device_t *dev;
-    mouse_state_t *state;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_MOUSE);
+    if (!dev) return;
 
-    static int prev_buttons;
-    int buttons, changed;
-    int i, dx, dy;
+    mouse_state_t *state = maple_dev_status(dev);
+    if (!state) return;
 
-    // Check if any mouse is connected
-    if (!(dev = maple_enum_type(0, MAPLE_FUNC_MOUSE)) ||
-        !(state = maple_dev_status(dev)))
-        return;
+    static int abs_x = 0, abs_y = 0;
+    static Uint8 prev_buttons = 0;
 
-    buttons = state->buttons ^ 0xff;
-    if (state->dz < 0) buttons |= MOUSE_WHEELUP;
-    if (state->dz > 0) buttons |= MOUSE_WHEELDOWN;
+    // Scale mouse movement
+    float mouse_scale_x = 640.0f / 320.0f;
+    float mouse_scale_y = 480.0f / 240.0f;
+    
+    int scaled_dx = (int)(state->dx * mouse_scale_x);
+    int scaled_dy = (int)(state->dy * mouse_scale_y);
+    
+    abs_x += scaled_dx;
+    abs_y += scaled_dy;
 
-    dx = state->dx;// >> __sdl_dc_mouse_shift;
-    dy = state->dy;// >> __sdl_dc_mouse_shift;
-    if (dx || dy) {
-        SDL_Event event;
-        event.type = SDL_MOUSEMOTION;
-        event.motion.xrel = dx;
-        event.motion.yrel = dy;
-        SDL_PushEvent(&event);
-    }
+    // Clamp to logical screen bounds
+    if (abs_x < 0) abs_x = 0;
+    if (abs_y < 0) abs_y = 0;
+    if (abs_x > 639) abs_x = 639;
+    if (abs_y > 479) abs_y = 479;
 
-    changed = buttons ^ prev_buttons;
-    for (i = 0; i < sizeof(sdl_mousebtn); i++) {
-        if (changed & sdl_mousebtn[i]) {
-            SDL_Event event;
-            event.type = (buttons & sdl_mousebtn[i]) ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
-            event.button.button = i + 1; // SDL button indexes start at 1
-            SDL_PushEvent(&event);
+    // Send mouse motion event
+    SDL_SendMouseMotion(NULL, 0, 0, abs_x, abs_y);
+
+    // Process button states
+    Uint8 changed_buttons = state->buttons ^ prev_buttons;
+    
+    for (int i = 0; i < sizeof(sdl_mousebtn) / sizeof(sdl_mousebtn[0]); i++) {
+        if (changed_buttons & (1 << i)) {
+            SDL_SendMouseButton(NULL, 0, 
+                (state->buttons & (1 << i)) ? SDL_PRESSED : SDL_RELEASED, 
+                sdl_mousebtn[i]);
         }
     }
-    prev_buttons = buttons;
+
+    // Handle mouse wheel separately
+    if (state->dz < 0) {
+        SDL_Event wheel_event = {0};
+        wheel_event.type = SDL_MOUSEWHEEL;
+        wheel_event.wheel.x = 0;  // No horizontal wheel movement
+        wheel_event.wheel.y = 1;  // Wheel up
+        SDL_PushEvent(&wheel_event);
+    } else if (state->dz > 0) {
+        SDL_Event wheel_event = {0};
+        wheel_event.type = SDL_MOUSEWHEEL;
+        wheel_event.wheel.x = 0;  // No horizontal wheel movement
+        wheel_event.wheel.y = -1; // Wheel down
+        SDL_PushEvent(&wheel_event);
+    }
+
+    prev_buttons = state->buttons;
 }
+
 extern int dreamcast_text_input_enabled;
 static void keyboard_update(void) {
     static kbd_state_t old_state;

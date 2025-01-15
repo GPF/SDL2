@@ -57,6 +57,7 @@
 //Custom code for 60Hz
 static int sdl_dc_no_ask_60hz=0;
 static int sdl_dc_default_60hz=0;
+unsigned int __sdl_dc_mouse_shift=1;
 #include "60hz.h"
 
 void SDL_DC_ShowAskHz(SDL_bool value)
@@ -204,12 +205,14 @@ int DREAMCAST_VideoInit(_THIS) {
     Uint32 Bmask = 0x0000001f;
     Uint32 Amask = 0; // No alpha channel
     int width = 640;
-    int height = 480;    
+    int height = 480;   
+    __sdl_dc_mouse_shift=640/width; 
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
     if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
         SDL_Log("Initializing SDL_DC_TEXTURED_VIDEO");
         width = 320;
         height = 240;
+        __sdl_dc_mouse_shift=640/width;
     }
     SDL_zero(current_mode);
 

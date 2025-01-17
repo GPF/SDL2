@@ -127,9 +127,8 @@ static void DREAMCAST_JoystickSetDevicePlayerIndex(int device_index, int player_
 
 static SDL_JoystickGUID DREAMCAST_JoystickGetDeviceGUID(int device_index)
 {
-    SDL_JoystickGUID guid;
-    SDL_zero(guid);
-    return guid;
+    const char *guid_string = "ff0013db5669727475616c2043007601"; // Your Dreamcast GUID
+    return SDL_JoystickGetGUIDFromString(guid_string);
 }
 
 static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)
@@ -204,59 +203,80 @@ static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick)
     prev_state = &joystick->hwdata->prev_state;
     changed = buttons ^ prev_state->buttons;
 
-    if (changed & (CONT_DPAD_UP | CONT_DPAD_DOWN | CONT_DPAD_LEFT |
-                   CONT_DPAD_RIGHT)) {
+    // Process D-Pad
+    if (changed & (CONT_DPAD_UP | CONT_DPAD_DOWN | CONT_DPAD_LEFT | CONT_DPAD_RIGHT)) {
         hat = SDL_HAT_CENTERED;
-
-        if (buttons & CONT_DPAD_UP)
-            hat |= SDL_HAT_UP;
-        if (buttons & CONT_DPAD_DOWN)
-            hat |= SDL_HAT_DOWN;
-        if (buttons & CONT_DPAD_LEFT)
-            hat |= SDL_HAT_LEFT;
-        if (buttons & CONT_DPAD_RIGHT)
-            hat |= SDL_HAT_RIGHT;
-
+        if (buttons & CONT_DPAD_UP) hat |= SDL_HAT_UP;
+        if (buttons & CONT_DPAD_DOWN) hat |= SDL_HAT_DOWN;
+        if (buttons & CONT_DPAD_LEFT) hat |= SDL_HAT_LEFT;
+        if (buttons & CONT_DPAD_RIGHT) hat |= SDL_HAT_RIGHT;
         SDL_PrivateJoystickHat(joystick, 0, hat);
     }
 
-    if (changed & (CONT_DPAD2_UP | CONT_DPAD2_DOWN | CONT_DPAD2_LEFT |
-                   CONT_DPAD2_RIGHT)) {
+    if (changed & (CONT_DPAD2_UP | CONT_DPAD2_DOWN | CONT_DPAD2_LEFT | CONT_DPAD2_RIGHT)) {
         hat = SDL_HAT_CENTERED;
-
-        if (buttons & CONT_DPAD2_UP)
-            hat |= SDL_HAT_UP;
-        if (buttons & CONT_DPAD2_DOWN)
-            hat |= SDL_HAT_DOWN;
-        if (buttons & CONT_DPAD2_LEFT)
-            hat |= SDL_HAT_LEFT;
-        if (buttons & CONT_DPAD2_RIGHT)
-            hat |= SDL_HAT_RIGHT;
-
+        if (buttons & CONT_DPAD2_UP) hat |= SDL_HAT_UP;
+        if (buttons & CONT_DPAD2_DOWN) hat |= SDL_HAT_DOWN;
+        if (buttons & CONT_DPAD2_LEFT) hat |= SDL_HAT_LEFT;
+        if (buttons & CONT_DPAD2_RIGHT) hat |= SDL_HAT_RIGHT;
         SDL_PrivateJoystickHat(joystick, 1, hat);
     }
 
+    // Process buttons
     for (i = 0; i < MAX_BUTTONS; ++i) {
         if (changed & sdl_buttons[i]) {
             SDL_PrivateJoystickButton(joystick, i, (buttons & sdl_buttons[i]) ? SDL_PRESSED : SDL_RELEASED);
         }
     }
 
-    if (state->joyx != prev_state->joyx)
-        SDL_PrivateJoystickAxis(joystick, 0, state->joyx);
-    if (state->joyy != prev_state->joyy)
-        SDL_PrivateJoystickAxis(joystick, 1, state->joyy);
-    if (state->rtrig != prev_state->rtrig)
-        SDL_PrivateJoystickAxis(joystick, 2, state->rtrig);
-    if (state->ltrig != prev_state->ltrig)
-        SDL_PrivateJoystickAxis(joystick, 3, state->ltrig);
-    if (state->joy2x != prev_state->joy2x)
-        SDL_PrivateJoystickAxis(joystick, 4, state->joy2x);
-    if (state->joy2y != prev_state->joy2y)
-        SDL_PrivateJoystickAxis(joystick, 5, state->joy2y);
+    // Scale Joystick Axes
+    #define DC_JOYSTICK_MAX 128
+    #define SDL_JOYSTICK_MAX 32767
+    int scale_axis(int value) {
+        return (value * SDL_JOYSTICK_MAX) / DC_JOYSTICK_MAX;
+    }
 
+    if (state->joyx != prev_state->joyx)
+        SDL_PrivateJoystickAxis(joystick, 0, scale_axis(state->joyx));
+    if (state->joyy != prev_state->joyy)
+        SDL_PrivateJoystickAxis(joystick, 1, scale_axis(state->joyy));
+    if (state->joy2x != prev_state->joy2x)
+        SDL_PrivateJoystickAxis(joystick, 4, scale_axis(state->joy2x));
+    if (state->joy2y != prev_state->joy2y)
+        SDL_PrivateJoystickAxis(joystick, 5, scale_axis(state->joy2y));
+
+    // Debugging: Print raw trigger values (before normalization)
+    // printf("Raw rtrig: %d, ltrig: %d\n", state->rtrig, state->ltrig);  // Debugging output
+
+#define DC_TRIGGER_MIN 0
+#define DC_TRIGGER_MAX 255
+#define SDL_TRIGGER_MAX 32767
+
+int normalize_trigger(int value) {
+    int normalized = SDL_TRIGGER_MAX;
+    return (value == DC_TRIGGER_MAX) ? DC_TRIGGER_MIN : normalized;  // Ensure we never go negative
+}
+
+    int rtrig = normalize_trigger(state->rtrig);
+    int ltrig = normalize_trigger(state->ltrig);
+
+    // Debugging: Print normalized trigger values
+    // printf("Normalized rtrig: %d, ltrig: %d\n", rtrig, ltrig);  // Debugging output
+
+    // If the trigger state is different, send the updated axis value
+    if (rtrig != prev_state->rtrig) {
+        // printf("Updating right trigger: %d\n", rtrig);  // Debugging output
+        SDL_PrivateJoystickAxis(joystick, 2, rtrig);  // Right trigger mapped as axis 2
+    }
+    if (ltrig != prev_state->ltrig) {
+        // printf("Updating left trigger: %d\n", ltrig);  // Debugging output
+        SDL_PrivateJoystickAxis(joystick, 3, ltrig);  // Left trigger mapped as axis 3
+    }
+
+    // Save the current state to compare on the next frame
     joystick->hwdata->prev_state = *state;
 }
+
 
 static void DREAMCAST_JoystickClose(SDL_Joystick *joystick)
 {

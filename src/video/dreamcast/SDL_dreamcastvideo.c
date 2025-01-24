@@ -50,6 +50,7 @@
 #include "SDL_hints.h"
 #include <kos.h>
 #include <dc/video.h>
+#include "SDL_dreamcastwindow.h"
 #define DREAMCASTVID_DRIVER_NAME       "dcvideo"
 #define DREAMCASTVID_DRIVER_EVDEV_NAME "dcevdev"
 
@@ -148,6 +149,11 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
     // device->HasScreenKeyboardSupport = DREAMCAST_HasScreenKeyboardSupport;
     device->StartTextInput = DREAMCAST_StartTextInput;
     device->StopTextInput = DREAMCAST_StopTextInput;    
+
+    // device->CreateSDLWindow = DREAMCAST_CreateWindow;
+    // device->SetWindowTitle = DREAMCAST_SetWindowTitle;
+    // device->DestroyWindow = DREAMCAST_DestroyWindow;
+
 #ifdef SDL_INPUT_LINUXEV
     if (evdev) {
         device->PumpEvents = DREAMCAST_EVDEV_Poll;
@@ -217,7 +223,7 @@ int DREAMCAST_VideoInit(_THIS) {
     SDL_zero(current_mode);
 
     // Initialize the default display mode
-    current_mode.format = SDL_PIXELFORMAT_ARGB1555;
+    current_mode.format = SDL_PIXELFORMAT_RGB565;
     current_mode.w = width;
     current_mode.h = height;
     current_mode.refresh_rate = 60; // Assume 60Hz for simplicity
@@ -234,11 +240,14 @@ int DREAMCAST_VideoInit(_THIS) {
         SDL_SetError("Failed to add video display");
         return -1;
     }
+#ifndef SDL_VIDEO_OPENGL    
     if (video_mode_hint == NULL){
         SDL_Log("No video mode hint set, defaulting to SDL_DC_DMA_VIDEO mode, with SDL_HINT_VIDEO_DOUBLE_BUFFER enabled");
         SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Default video mode
         SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1"); // Default double buffering
+        // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
     }
+#endif    
     // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     SDL_Log("SDL2 Dreamcast video initialized: %dx%d, ARGB1555", width, height);
     return 0;
@@ -260,7 +269,7 @@ void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display) {
         SDL_zero(mode);
         mode.w = supported_modes[i][0];
         mode.h = supported_modes[i][1];
-        mode.format = SDL_PIXELFORMAT_ARGB1555; // Change as necessary
+        mode.format = SDL_PIXELFORMAT_RGB565; // Change as necessary
         mode.refresh_rate = refresh_rate;
         SDL_AddDisplayMode(display, &mode);
     }
@@ -331,13 +340,13 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
 
     // Ensure mode->format is set
     if (mode->format == 0) {
-        mode->format = SDL_PIXELFORMAT_ARGB1555;  // Default pixel format
+        mode->format = SDL_PIXELFORMAT_RGB565;  // Default pixel format
     }
 
     // Map SDL pixel format to Dreamcast pixel mode
     switch (mode->format) {
         case SDL_PIXELFORMAT_ARGB1555:
-            pixel_mode = PM_RGB0888;
+            pixel_mode = PM_RGB555;
             break;
         case SDL_PIXELFORMAT_RGB565:
             pixel_mode = PM_RGB565;
@@ -353,10 +362,9 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
     // Set video mode in hardware
     vid_set_mode(disp_mode, pixel_mode);
 
-    SDL_Log("Display mode set: %dx%d @ %dHz, format %s",
-            mode->w, mode->h, __sdl_dc_is_60hz ? 60 : 50,
-            SDL_GetPixelFormatName(mode->format));
-
+    if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
+     vid_mode->fb_count =2; // Enable double buffering
+    }
     return 0;
 }
 

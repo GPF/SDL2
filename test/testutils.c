@@ -144,8 +144,36 @@ LoadTexture(SDL_Renderer *renderer, const char *file, SDL_bool transparent,
         if (height_out) {
             *height_out = temp->h;
         }
+#ifdef __DREAMCAST__        
+        SDL_Surface* converted_surface1 = SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB8888, 0);
+// Extract the color of the first pixel
+Uint32 *pixels = (Uint32 *)converted_surface1->pixels;
+Uint32 pixel0Color = pixels[0] & 0x00FFFFFF; // Extract only RGB from pixel 0
 
+// Loop through pixels to set transparency and swap BGR to RGB
+for (int y = 0; y < converted_surface1->h; ++y) {
+    for (int x = 0; x < converted_surface1->w; ++x) {
+        int pixelIndex = y * converted_surface1->w + x;
+
+        // Swap BGR to RGB
+        Uint32 pixel = pixels[pixelIndex];
+        Uint8 r = pixel & 0xFF;
+        Uint8 g = (pixel >> 8) & 0xFF;
+        Uint8 b = (pixel >> 16) & 0xFF;
+        pixels[pixelIndex] = (pixel & 0xFF000000) | (r << 16) | (g << 8) | b;
+
+        // Set transparency based on first pixel color
+        if ((pixels[pixelIndex] & 0x00FFFFFF) == pixel0Color) {
+            pixels[pixelIndex] = (pixels[pixelIndex] & 0x00FFFFFF); // Fully transparent
+        } else {
+            pixels[pixelIndex] |= 0xFF000000; // Fully opaque
+        }
+    }
+}        
+        texture = SDL_CreateTextureFromSurface(renderer, converted_surface1);
+#else
         texture = SDL_CreateTextureFromSurface(renderer, temp);
+#endif
         if (!texture) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't create texture: %s\n", SDL_GetError());
         }

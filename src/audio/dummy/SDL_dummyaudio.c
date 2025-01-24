@@ -55,7 +55,7 @@ static SDL_bool DUMMYAUDIO_Init(SDL_AudioDriverImpl *impl)
     impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
     impl->OnlyHasDefaultCaptureDevice = SDL_TRUE;
     impl->HasCaptureSupport = SDL_TRUE;
-
+    SDL_Log("Dummy audio driver enabled");
     return SDL_TRUE; /* this audio target is available. */
 }
 

@@ -64,17 +64,11 @@ const static unsigned short sdl_shift[] = {
     SDL_SCANCODE_RCTRL, SDL_SCANCODE_RSHIFT, SDL_SCANCODE_RALT, 0 /* S2 */,
 };
 
-#define MOUSE_LEFTBUTTON    1
-#define MOUSE_RIGHTBUTTON   2
-#define MOUSE_SIDEBUTTON    3
-// Remove SDL_BUTTON_WHEELUP and SDL_BUTTON_WHEELDOWN since they are incorrect
-// We'll handle the wheel events separately.
-
 const static char sdl_mousebtn[] = {
-    SDL_BUTTON_LEFT,        // Left button maps to SDL_BUTTON_LEFT
-    SDL_BUTTON_RIGHT,       // Right button maps to SDL_BUTTON_RIGHT
-    MOUSE_LEFTBUTTON,       // Left button (No longer mapped to wheel)
-    MOUSE_RIGHTBUTTON       // Right button (No longer mapped to wheel)
+    0,                     // No button maps to SDL_BUTTON_WHEELUP
+    SDL_BUTTON_RIGHT ,     // Right button maps to SDL_BUTTON_RIGHT
+    SDL_BUTTON_LEFT  ,     // Left button maps to SDL_BUTTON_LEFT
+    SDL_BUTTON_MIDDLE      // Side button maps to SDL_BUTTON_MIDDLE
 };
 
 static void mouse_update(void) {

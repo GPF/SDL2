@@ -326,13 +326,37 @@ int main(int argc, char **argv)
     } else {
 #ifdef __DREAMCAST__        
         filename = "/rd/testyuv.bmp";
+        original = SDL_ConvertSurfaceFormat(SDL_LoadBMP(filename), SDL_PIXELFORMAT_ARGB8888, 0);
+        // Extract the color of the first pixel
+        Uint32 *pixels = (Uint32 *)original->pixels;
+        Uint32 pixel0Color = pixels[0] & 0x00FFFFFF; // Extract only RGB from pixel 0
+
+        // Loop through pixels to set transparency and swap BGR to RGB
+        for (int y = 0; y < original->h; ++y) {
+            for (int x = 0; x < original->w; ++x) {
+                int pixelIndex = y * original->w + x;
+
+                // Swap BGR to RGB
+                Uint32 pixel = pixels[pixelIndex];
+                Uint8 r = pixel & 0xFF;
+                Uint8 g = (pixel >> 8) & 0xFF;
+                Uint8 b = (pixel >> 16) & 0xFF;
+                pixels[pixelIndex] = (pixel & 0xFF000000) | (r << 16) | (g << 8) | b;
+
+                // Set transparency based on first pixel color
+                if ((pixels[pixelIndex] & 0x00FFFFFF) == pixel0Color) {
+                    pixels[pixelIndex] = (pixels[pixelIndex] & 0x00FFFFFF); // Fully transparent
+                } else {
+                    pixels[pixelIndex] |= 0xFF000000; // Fully opaque
+                }
+            }
+        }            
 #else
-        filename = "testyuv.bmp";        
+        filename = "testyuv.bmp";      
+        original = SDL_ConvertSurfaceFormat(SDL_LoadBMP(filename), SDL_PIXELFORMAT_RGB24, 0);          
 #endif
     }
     
-
-    original = SDL_ConvertSurfaceFormat(SDL_LoadBMP(filename), SDL_PIXELFORMAT_RGB24, 0);
     if (!original) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         return 3;

@@ -49,7 +49,19 @@ void glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, con
 
 void glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha)
 {
-    // TODO: Implement glBlendFuncSeparate for Dreamcast
+    // Set RGB blending
+    glBlendFunc(sfactorRGB, dfactorRGB);
+
+    // Check if alpha blending factors are non-zero
+    if (sfactorAlpha != GL_ZERO && dfactorAlpha != GL_ZERO) {
+        // Enable alpha test only if alpha blending is needed
+        glEnable(GL_ALPHA_TEST);
+        glAlphaFunc(GL_GREATER, 0.5f);  // This checks if alpha is greater than 0.5
+    } else {
+        // If no alpha blending is required, disable alpha test
+        SDL_Log("Disabling alpha test");
+        glDisable(GL_ALPHA_TEST);
+    }
 }
 
 void glBlendEquation(GLenum mode)
@@ -173,18 +185,34 @@ int DREAMCAST_GL_SwapBuffers(_THIS, SDL_Window * window){
 
 int DREAMCAST_GL_Initialize(_THIS) {
     printf("Initializing SDL2 GLdc...\n");
-    glKosInit();
+    // glKosInit();
 
-    // Set default values or configure attributes as needed
-    // _this->gl_config.red_size = 5;
-    // _this->gl_config.green_size = 6;
-    // _this->gl_config.blue_size = 5;
-    // _this->gl_config.alpha_size = 0;
+    // // Set default values or configure attributes as needed
+    // _this->gl_config.red_size = 8;
+    // _this->gl_config.green_size = 8;
+    // _this->gl_config.blue_size = 8;
+    // _this->gl_config.alpha_size = 8;
     // _this->gl_config.depth_size = 32;
     // _this->gl_config.stencil_size = 8;
     // _this->gl_config.double_buffer = 1;
 
+    GLdcConfig config;
+    glKosInitConfig(&config);
 
+    // Manually set each field after initialization
+    config.autosort_enabled = GL_FALSE;           // Use manual sorting with depth testing
+    config.fsaa_enabled = GL_FALSE;              // Disable FSAA for better performance
+    config.internal_palette_format = GL_RGBA4;   // Use RGBA4 for paletted textures
+    // config->initial_op_capacity = 1024 * 3;
+    // config->initial_pt_capacity = 512 * 3;
+    // config->initial_tr_capacity = 1024 * 3;
+    // config->initial_immediate_capacity = 1024 * 3;
+    config.texture_twiddle = GL_FALSE;            // Enable texture twiddling for performance
+
+    // Apply the configuration before initializing GLdc
+    glKosInitEx(&config);
+
+    
     if (DREAMCAST_GL_LoadLibrary(_this, NULL) < 0) {
         return -1;
     }
@@ -216,10 +244,10 @@ SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
     }
 
     // Store the GL attributes in the context
-    // context->red_size = 5;   // You can still set these if you want to keep them in context
-    // context->green_size = 6;
-    // context->blue_size = 5;
-    // context->alpha_size = 0;
+    // context->red_size = 8;   // You can still set these if you want to keep them in context
+    // context->green_size = 8;
+    // context->blue_size = 8;
+    // context->alpha_size = 8;
     // context->depth_size = 32;
     // context->stencil_size = 8;
     // context->double_buffer = 1;

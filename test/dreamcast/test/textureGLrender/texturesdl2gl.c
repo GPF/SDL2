@@ -3,14 +3,14 @@
     #include <math.h>
     #include <stdio.h>
 
-    #define FPS 60
+    #define FPS 30
     #define WINDOW_WIDTH 640
     #define WINDOW_HEIGHT 480
 
     const Uint32 waittime = 1000 / FPS;
 
     float xrot = 0.0f, yrot = 0.0f, zrot = 0.0f;
-    const float ROTATION_SPEED = 0.1f;
+    const float ROTATION_SPEED = 0.9f;
 
     SDL_Texture* texture = NULL;
 
@@ -51,9 +51,9 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* filename) {
         Uint32 transparentColor = *(Uint32 *)image->pixels;
         SDL_SetColorKey(image, SDL_TRUE, transparentColor);
     }
-
+           SDL_SetColorKey(image, SDL_TRUE, *(Uint32 *)image->pixels);
     // Convert the surface to a format compatible with the renderer
-    SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(image, SDL_PIXELFORMAT_ARGB1555, 0);
+    SDL_Surface* converted_surface = SDL_ConvertSurfaceFormat(image, SDL_PIXELFORMAT_ARGB8888, 0);
     if (!converted_surface) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to convert surface: %s\n", SDL_GetError());
         SDL_FreeSurface(image);
@@ -109,7 +109,7 @@ void DrawScene(SDL_Renderer* renderer) {
             textureWidth,                  // Texture width
             textureHeight                  // Texture height
         };
-
+        SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
         // Draw the rotated texture with vertical flip
         SDL_RenderCopyEx(renderer, texture, NULL, &dstRect, rotationAngle, NULL, SDL_FLIP_VERTICAL);
     }
@@ -132,7 +132,9 @@ void DrawScene(SDL_Renderer* renderer) {
     }
 
     int main(int argc, char** argv) {
-            // SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "0");
+        SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1"); // SDL2 defaults to double buffering, this shuts it off
+        SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+                // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO");
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL could not initialize! SDL Error: %s\n", SDL_GetError());
             return 1;
@@ -143,18 +145,19 @@ void DrawScene(SDL_Renderer* renderer) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Window could not be created! SDL Error: %s\n", SDL_GetError());
             return 1;
         }
-
+// SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
         // SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
         // SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
             // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
     // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Set for DMA mode
-    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
+    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
     // SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE| SDL_RENDERER_PRESENTVSYNC);    
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);     
         if (!renderer) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Renderer could not be created! SDL Error: %s\n", SDL_GetError());
             return 1;
         }
+        
     SDL_RendererInfo info;
     if (SDL_GetRendererInfo(renderer, &info) == 0) {
         SDL_Log("Renderer Name: %s", info.name);
@@ -163,7 +166,7 @@ void DrawScene(SDL_Renderer* renderer) {
             SDL_Log("  %s", SDL_GetPixelFormatName(info.texture_formats[i]));
         }
     }
-        texture = LoadTexture(renderer, "/rd/Troy2024_200.bmp");  
+        texture = LoadTexture(renderer, "/rd/Troy2024.bmp");  
         if (!texture) {
             SDL_DestroyRenderer(renderer);
             SDL_DestroyWindow(window);
@@ -192,7 +195,7 @@ void DrawScene(SDL_Renderer* renderer) {
 
             DrawScene(renderer);
 
-            SDL_Delay(waittime); // Wait for the remaining frame time
+            // SDL_Delay(waittime); // Wait for the remaining frame time
         }
 
         if (joystick) {

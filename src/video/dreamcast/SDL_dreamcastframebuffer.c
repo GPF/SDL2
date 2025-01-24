@@ -46,6 +46,83 @@ static float sdl_dc_u2=0.3f;
 static float sdl_dc_v1=0.9f;
 static float sdl_dc_v2=0.6f;
 
+SDL_Surface *cursorSurface = NULL;
+/* XPM */
+static const char *arrow[] = {
+    /* width height num_colors chars_per_pixel */
+    "    32    32        3            1",
+    /* colors */
+    "X c #000000",
+    ". c #ffffff",
+    "  c None",
+    /* pixels */
+    "X                               ",
+    "XX                              ",
+    "X.X                             ",
+    "X..X                            ",
+    "X...X                           ",
+    "X....X                          ",
+    "X.....X                         ",
+    "X......X                        ",
+    "X.......X                       ",
+    "X........X                      ",
+    "X.....XXXXX                     ",
+    "X..X..X                         ",
+    "X.X X..X                        ",
+    "XX  X..X                        ",
+    "X    X..X                       ",
+    "     X..X                       ",
+    "      X..X                      ",
+    "      X..X                      ",
+    "       XX                       ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "                                ",
+    "0,0"
+};
+
+static SDL_Surface *init_system_cursor(const char *image[]) {
+    SDL_Surface *cursor_surface = SDL_CreateRGBSurfaceWithFormat(0, 32, 32, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!cursor_surface) {
+        SDL_Log("Failed to create cursor surface: %s", SDL_GetError());
+        return NULL;
+    }
+
+    int i, row, col;
+    Uint32 color;
+    
+    for (row = 0; row < 32; ++row) {
+        for (col = 0; col < 32; ++col) {
+            color = 0;  // Default to transparent (or background color)
+            switch (image[4 + row][col]) {
+                case 'X':
+                    color = SDL_MapRGBA(cursor_surface->format, 0, 0, 0, 255);  // Black
+                    break;
+                case '.':
+                    color = SDL_MapRGBA(cursor_surface->format, 255, 255, 255, 255);  // White
+                    break;
+                case ' ':
+                    color = SDL_MapRGBA(cursor_surface->format, 0, 0, 0, 0);  // Transparent
+                    break;
+            }
+            ((Uint32*)cursor_surface->pixels)[row * 32 + col] = color;
+        }
+    }
+
+    return cursor_surface;
+}
+
+
 static void sdl_dc_blit_textured(void)
 {
 #define DX1 0.0f
@@ -136,13 +213,11 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     SDL_GetWindowSizeInPixels(window, &w, &h);
 
     // Retrieve the display mode's format to ensure consistency with the surface creation
-
     if (SDL_GetWindowDisplayMode(window, &mode) != 0) {
         return SDL_SetError("Failed to get window display mode");
     }
 
     // Use the format from the display mode or fallback to the default
-
     if (surface_format != SDL_PIXELFORMAT_RGB565 &&
         surface_format != SDL_PIXELFORMAT_ARGB1555 &&
         surface_format != SDL_PIXELFORMAT_RGB888 &&
@@ -155,53 +230,50 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         // Use 16-bit for textured mode, keep the format but change bit depth
         target_bpp = 16;  // Adjust bit depth to 16-bit for textured mode
         surface_format = SDL_PIXELFORMAT_RGB565;
-        sdl_dc_width =w;
-        sdl_dc_height=h;
+        sdl_dc_width = w;
+        sdl_dc_height = h;
         w = SDL_powerof2(w);  
         h = SDL_powerof2(h);         
     } else {
-        // Default to the original bit depth from the display mode
-        target_bpp = SDL_BITSPERPIXEL(surface_format) ;  // Maintain the original depth if not textured mode
-        if (target_bpp == 24) {
-            target_bpp = 32;
-        }
+        target_bpp = SDL_BITSPERPIXEL(surface_format);  // Maintain the original depth if not textured mode
+        // if (target_bpp == 24) {
+        //     target_bpp = 32;
+        // }
     }    
     surface->pitch = w * (target_bpp / 8);
 
     // Create the surface with the appropriate format
-    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 
-                                             target_bpp, 
-                                             surface_format);
+    surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, target_bpp, surface_format);
     if (!surface) {
         return -1;
     }
 
-    if (sdl_dc_pvr_inited !=1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0)) {
+    if (sdl_dc_pvr_inited != 1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0)) {
         surface->pixels = (void *)vram_l;  // Default for SDL_DC_DIRECT_VIDEO
         SDL_Log("Inited SDL_DC_DIRECT_VIDEO"); 
     }
 
-    if (sdl_dc_pvr_inited !=1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0)) {
+    if (sdl_dc_pvr_inited != 1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0)) {
         pvr_dma_init();
-        sdl_dc_pvr_inited =1;
+        sdl_dc_pvr_inited = 1;
         SDL_Log("Inited SDL_DC_DMA_VIDEO");   
-		sdl_dc_dblsize=(w*h*(SDL_BITSPERPIXEL(surface_format)));
-		sdl_dc_dblfreed = calloc(128+sdl_dc_dblsize,1);
-		sdl_dc_dblmem = (unsigned short *)(((((unsigned)sdl_dc_dblfreed)+64)/64)*64);        
+        sdl_dc_dblsize = (w * h * (SDL_BITSPERPIXEL(surface_format)));
+        sdl_dc_dblfreed = calloc(128 + sdl_dc_dblsize, 1);
+        sdl_dc_dblmem = (unsigned short *)(((((unsigned)sdl_dc_dblfreed) + 64) / 64) * 64);        
         surface->pixels = (void *)sdl_dc_dblmem;
     }
 
-    if (sdl_dc_textured !=1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0)) {
-		pvr_init_defaults();
-		pvr_dma_init();
-		sdl_dc_pvr_inited = 1;
-        sdl_dc_textured =1;
-        sdl_dc_bpp=SDL_BITSPERPIXEL(surface_format);
+    if (sdl_dc_textured != 1 && (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0)) {
+        pvr_init_defaults();
+        pvr_dma_init();
+        sdl_dc_pvr_inited = 1;
+        sdl_dc_textured = 1;
+        sdl_dc_bpp = SDL_BITSPERPIXEL(surface_format);
         sdl_dc_wtex = w;  
         sdl_dc_htex = h;   
-        SDL_Log("sdl_dc_wtex: %d",sdl_dc_wtex);
-        SDL_Log("sdl_dc_htex: %d",sdl_dc_htex);
-        sdl_dc_memtex = pvr_mem_malloc(sdl_dc_wtex*sdl_dc_htex*2);        
+        SDL_Log("sdl_dc_wtex: %d", sdl_dc_wtex);
+        SDL_Log("sdl_dc_htex: %d", sdl_dc_htex);
+        sdl_dc_memtex = pvr_mem_malloc(sdl_dc_wtex * sdl_dc_htex * 2);        
         sdl_dc_u1 = 0.0f;
         sdl_dc_v1 = 0.0f;
         sdl_dc_u2 = (float)sdl_dc_width / (float)sdl_dc_wtex;
@@ -209,15 +281,20 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
 
         if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
             SDL_Log("Inited SDL_DC_TEXTURED_VIDEO with double buffer");
-			sdl_dc_memfreed = calloc(64+(sdl_dc_wtex*sdl_dc_htex*(sdl_dc_bpp>>3)),1);
-			sdl_dc_buftex = (unsigned short *)(((((unsigned)sdl_dc_memfreed)+32)/32)*32);            
+            sdl_dc_memfreed = calloc(64 + (sdl_dc_wtex * sdl_dc_htex * (sdl_dc_bpp >> 3)), 1);
+            sdl_dc_buftex = (unsigned short *)(((((unsigned)sdl_dc_memfreed) + 32) / 32) * 32);            
             surface->pixels = (void *)sdl_dc_buftex;
-        }
-        else {
+        } else {
             SDL_Log("Inited SDL_DC_TEXTURED_VIDEO without double buffer");
-			sdl_dc_buftex = 0;
-			surface->pixels = sdl_dc_memtex;
-		}        
+            sdl_dc_buftex = 0;
+            surface->pixels = sdl_dc_memtex;
+        }        
+    }
+
+    // Initialize the cursor only once
+    if (!SDL_GetWindowData(window, "cursor_initialized")) {
+        cursorSurface = init_system_cursor(arrow);  // Initialize the custom cursor
+        SDL_SetWindowData(window, "cursor_initialized", cursorSurface);  // Store cursor to window data
     }
 
     /* Save the info and return! */
@@ -228,6 +305,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     SDL_Log("SDL_DREAMCAST_CreateWindowFramebuffer: %d x %d, %d bpp", w, h, target_bpp);
     return 0;
 }
+
 int fb=0;
 int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_Rect *rects, int numrects)
 {
@@ -248,11 +326,31 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
     h = surface->h;
     pitch = surface->pitch;
 
+ // Retrieve mouse position and draw the cursor at the appropriate position
+    int mouse_x, mouse_y;
+    SDL_GetMouseState(&mouse_x, &mouse_y); // This could be mapped to controller input
+
+    // Define the cursor rectangle
+    SDL_Rect cursorRect = { mouse_x, mouse_y, 32, 32 }; // Adjust as necessary
+
+    // You can directly copy the cursor pixels to the framebuffer
+    if (SDL_GetWindowData(window, "cursor_initialized") != NULL) {
+        // cursor = (SDL_Cursor *)SDL_GetWindowData(window, "cursor_initialized");
+        
+        // You need to extract the pixel data from the cursor and blit it to the framebuffer
+        // This can be done using SDL_Surface and copying the cursor image to the framebuffer
+        SDL_Surface *cursor_surface = SDL_CreateRGBSurfaceWithFormatFrom(cursor_surface->pixels, 32, 32, 32, 32 * sizeof(Uint32), SDL_PIXELFORMAT_ARGB8888);
+
+        // Blit the cursor surface onto the main framebuffer at the correct location
+        SDL_BlitSurface(cursor_surface, NULL, surface, &cursorRect);
+        SDL_FreeSurface(cursor_surface);
+    }
+
+
 if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
     if (double_buffer_hint) {
     // Assuming vram_l points to the start of the framebuffer
-    if (fb<6){fb =+1;}
-    else{fb=0;}
+    fb= !fb;
     vid_set_fb(fb);
     }
     dst = (Uint32 *)vram_l;
@@ -281,7 +379,7 @@ if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") ==
         for (i = 0; i < numrects; ++i) {
             const SDL_Rect *rect = &rects[i];
             for (int y = rect->y; y < rect->y + rect->h; ++y) {
-                sq_cpy(dst + ((y * (pitch / sizeof(Uint32))) + rect->x),
+                SDL_memcpy(dst + ((y * (pitch / sizeof(Uint32))) + rect->x),
                     src_row + ((y * (pitch / sizeof(Uint32))) + rect->x),
                     rect->w * sizeof(Uint32));
             }
@@ -297,9 +395,8 @@ if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") ==
             if (double_buffer_hint) {
                 if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
                     // SDL_Log("SDL_HINT_VIDEO_DOUBLE_BUFFER");
-                if (fb<6){fb =+1;}
-                else{fb=0;}
                 vid_flip(fb);
+                fb= !fb;
                 }
                 
             }

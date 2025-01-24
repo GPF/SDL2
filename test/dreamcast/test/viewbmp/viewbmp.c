@@ -35,8 +35,11 @@
         int running = 1;
 
 
-        // SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "0"); // SDL2 defaults to double buffering, this shuts it off
-
+        // SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1"); // SDL2 defaults to double buffering, this shuts it off
+        // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+        // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO");
+        // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO");
+        // SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
         printf("SDL2_INIT_VIDEO\n");
         // Initialize SDL
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0) {
@@ -56,13 +59,14 @@
         printf("SDL_CreateRenderer\n"); 
 
 
-        // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
-        SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO");
+
+        // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO");
         // Create a renderer
         // Set SDL hint for the renderer
-        SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE| SDL_RENDERER_PRESENTVSYNC); 
-        // renderer = SDL_CreateRenderer(window, -1, 0);
+        // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC); 
+        // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "opengl"); 
+        // renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED| SDL_RENDERER_PRESENTVSYNC);
         // renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED| SDL_RENDERER_PRESENTVSYNC);    
         if (!renderer) { 
             printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -103,7 +107,7 @@
     // Uint32 transparentColor = *(Uint32 *)image_surface->pixels;
     // SDL_SetColorKey(image_surface->pixels, SDL_TRUE, transparentColor);
     // Convert the surface to ARGB8888 format
-    SDL_Surface *converted_surface = SDL_ConvertSurfaceFormat(image_surface, SDL_PIXELFORMAT_ARGB1555, 0);
+    SDL_Surface *converted_surface = SDL_ConvertSurfaceFormat(image_surface, SDL_PIXELFORMAT_ARGB8888, 0);
     if (!converted_surface) {
         printf("Failed to convert surface format: %s\n", SDL_GetError());
         SDL_FreeSurface(image_surface);
@@ -114,22 +118,22 @@
     printf("converted_surface surface format: %s\n", format_name); 
     // Manually adjust the pixel data to swap BGR to RGB
     SDL_SetColorKey(converted_surface, 1, *((Uint8 *)converted_surface->pixels));
-    // Uint32 *pixels = (Uint32 *)converted_surface->pixels;
-    // for (int y = 0; y < converted_surface->h; ++y) {
-    //     for (int x = 0; x < converted_surface->w; ++x) {
-    //         Uint32 pixel = pixels[y * converted_surface->w + x];
+    Uint32 *pixels = (Uint32 *)converted_surface->pixels;
+    for (int y = 0; y < converted_surface->h; ++y) {
+        for (int x = 0; x < converted_surface->w; ++x) {
+            Uint32 pixel = pixels[y * converted_surface->w + x];
 
-    //         // Extract ARGB values
-    //         Uint8 a = (pixel >> 24) & 0xFF;
-    //         Uint8 r = (pixel >> 16) & 0xFF;
-    //         Uint8 g = (pixel >> 8) & 0xFF;
-    //         Uint8 b = pixel & 0xFF;
+            // Extract ARGB values
+            Uint8 a = (pixel >> 24) & 0xFF;
+            Uint8 r = (pixel >> 16) & 0xFF;
+            Uint8 g = (pixel >> 8) & 0xFF;
+            Uint8 b = pixel & 0xFF;
 
-    //         // Swap B and R
-    //         Uint32 corrected_pixel = (a << 24) | (b << 16) | (g << 8) | r;
-    //         pixels[y * converted_surface->w + x] = corrected_pixel;
-    //     }
-    // }
+            // Swap B and R
+            Uint32 corrected_pixel = (a << 24) | (b << 16) | (g << 8) | r;
+            pixels[y * converted_surface->w + x] = corrected_pixel;
+        }
+    }
     format_name = SDL_GetPixelFormatName(converted_surface->format->format);
     printf("converted_surface surface format after extract argb values: %s\n", format_name);    
         // Create texture from surface
@@ -182,7 +186,7 @@
         }
         // Render the texture with the adjusted rectangle
         SDL_RenderCopyEx(renderer, texture, NULL, &dest_rect, 0, NULL, fl);
-        
+
         // Present the renderer
         SDL_RenderPresent(renderer);
 
@@ -190,7 +194,7 @@
         k = !k;
 
         // Optional delay for frame rate control (approximately 60 FPS)
-        SDL_Delay(16);
+        SDL_Delay(116);
     }
         // Clean up
         if (joystick) {

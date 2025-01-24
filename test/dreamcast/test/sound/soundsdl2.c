@@ -6,7 +6,7 @@
 #ifdef DREAMCAST
 #include "kos.h"
 #include "SDL_hints.h"
-#define WAV_PATH "/rd/001_hazard.wav"
+#define WAV_PATH "/rd/StarWars60.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else
@@ -49,8 +49,13 @@ static void open_audio(void) {
         quit(2);
     }
 
-    SDL_Log("SDL_OpenAudioDevice successful");
-    SDL_PauseAudioDevice(device, SDL_FALSE);
+ // Double-check if it's really unpaused
+    SDL_PauseAudioDevice(device, 0);
+    if (SDL_GetAudioDeviceStatus(device) != SDL_AUDIO_PLAYING) {
+        SDL_Log("Audio device did not start playing! %s", SDL_GetError());
+    }
+    printf("SDL_OpenAudioDevice successful");
+
 }
 
 #ifndef __EMSCRIPTEN__
@@ -59,11 +64,11 @@ static void reopen_audio(void) {
     open_audio();
 }
 #endif
-void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size);
+// void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size);
 void SDLCALL fillerup(void *userdata, Uint8 *stream, int len) {
     // Fill the stream directly
     // userdata can contain any necessary state information
-
+    // SDL_Log("fillerup\n");
     Uint8 *waveptr = wave.sound + wave.soundpos;
     int waveleft = wave.soundlen - wave.soundpos;
 
@@ -98,7 +103,7 @@ int main(int argc, char *argv[]) {
     SDL_Renderer *renderer;
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
-    SDL_SetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC, "1");
+    // SDL_SetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC, "0");
     /* Load the SDL library */
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
@@ -113,10 +118,10 @@ int main(int argc, char *argv[]) {
         return 1;  
     } 
      // Set SDL hint for the renderer
-    SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
+    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
     printf("SDL_CreateRenderer\n"); 
     // Create a renderer
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) { 
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -130,7 +135,7 @@ int main(int argc, char *argv[]) {
         quit(1);
     }
     // wave.spec.freq= 44100;
-    // wave.spec.format    = AUDIO_S8;
+    // wave.spec.format    = AUDIO_S16LSB;
     // wave.spec.channels = 1;
     // wave.spec.samples = 4096;
     wave.spec.callback = fillerup;
@@ -146,7 +151,7 @@ int main(int argc, char *argv[]) {
     open_audio();
 
     SDL_FlushEvents(SDL_AUDIODEVICEADDED, SDL_AUDIODEVICEREMOVED);
-
+       
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(loop, 0, 1);
 #else

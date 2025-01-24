@@ -590,7 +590,7 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             texture_h = texture->h;
             data->texw = 1.0f;
             data->texh = 1.0f;
-             SDL_Log("Dreamcast: Texture size is power-of-two: w=%d, h=%d\n", texture_w, texture_h);
+            //  SDL_Log("Dreamcast: Texture size is power-of-two: w=%d, h=%d\n", texture_w, texture_h);
         }
    // Adjust pixel data only if the format is RGB888
     // if (texture->format == SDL_PIXELFORMAT_RGB888) {
@@ -796,38 +796,7 @@ static int GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
     renderdata->glBindTexture(textype, data->texture);
     renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / texturebpp));
-// #ifdef __DREAMCAST__    
-//     // SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, 
-//     //             "Dreamcast: glTexSubImage2D - textype=%d, level=0, rect->x=%d, rect->y=%d, adjustedWidth=%d, adjustedHeight=%d, format=%d, formattype=%d, pixels=%p\n",
-//     //             textype, rect->x, rect->y, adjustedWidth, adjustedHeight, data->format, data->formattype, pixels);
-//     // Remove the color key setup or modify it to handle alpha correctly
-//     if (texture->format == SDL_PIXELFORMAT_ARGB8888) {
-//         // Get texture dimensions
-//         int texture_w = texture->w;
-//         int texture_h = texture->h;
-        
-//         // Convert RGB888 pixels to ARGB8888 with swapped red and blue channels
-//         Uint32 *thepixels = (Uint32 *)pixels;
-//         for (int y = 0; y < texture_h; ++y) {
-//             for (int x = 0; x < texture_w; ++x) {
-//                 Uint32 cpixel = thepixels[y * texture_w + x];
 
-//                 // Extract RGB values
-//                 Uint8 r = (cpixel >> 16) & 0xFF;
-//                 Uint8 g = (cpixel >> 8) & 0xFF;
-//                 Uint8 b = cpixel & 0xFF;
-
-//                 // Set alpha to 0xFF (fully opaque)
-//                 Uint8 a = 0xFF;
-
-//                 // Create corrected pixel with swapped red and blue channels
-//                 Uint32 corrected_pixel = (a << 24) | (b << 16) | (g << 8) | r;
-//                 thepixels[y * texture_w + x] = corrected_pixel;
-//             }
-//         }
-//         SDL_Log("Dreamcast: Converted RGB888 texture to ARGB8888 for proper blending.\n");
-//     }
-// #endif
     renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w,
                                 rect->h, data->format, data->formattype,
                                 pixels);

@@ -25,6 +25,13 @@
 
 #include "../SDL_sysvideo.h"
 
+typedef struct SDL_VideoData {
+    Uint32 format;       /* Pixel format (e.g., RGB565, ARGB8888) */
+    int w, h;           /* Screen width/height */
+    SDL_Window *window; /* Pointer to active SDL2 window */
+
+} SDL_VideoData;
+
 #endif /* SDL_dreamcastvideo_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

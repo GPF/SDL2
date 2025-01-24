@@ -150,7 +150,14 @@ void loop(void)
     /* Check for events */
     while (SDL_PollEvent(&event)) {
         SDLTest_CommonEvent(state, &event, &done);
-
+        if (event.type == SDL_MOUSEWHEEL) {
+            // Handle mouse wheel events
+            SDL_Log("Mouse wheel event: x=%d, y=%d\n", event.wheel.x, event.wheel.y);
+            // Here, you could implement scrolling functionality, like:
+            // - Scrolling through a list or menu
+            // - Zooming in/out on an image or view
+            // - Adjusting some UI element (like a slider)
+        }
         if (event.type == SDL_WINDOWEVENT) {
             if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
                 SDL_Window *window = SDL_GetWindowFromID(event.window.windowID);

@@ -8,7 +8,7 @@ BUILD_DIR="${PWD}/build"
 ENABLE_OPENGL=ON
 ENABLE_SDL_TESTS=ON
 ENABLE_PTHREADS=OFF
-ENABLE_UNIX_TIMERS=ON
+ENABLE_UNIX_TIMERS=OFF
 BUILD_JOBS=$(nproc) # Use all available CPU cores by default
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -48,7 +48,7 @@ mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 # Set CMake variables based on OpenGL and SDL_TESTS options
 if [ "$ENABLE_OPENGL" == "ON" ]; then
-CMAKE_OPTS="-DSDL_OPENGL=ON"
+CMAKE_OPTS="-DSDL_OPENGL=ON -DSDL_HAPTIC=ON"
 else
 CMAKE_OPTS="-DSDL_OPENGL=OFF"
 fi

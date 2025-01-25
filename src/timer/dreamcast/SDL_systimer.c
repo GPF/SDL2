@@ -23,6 +23,9 @@
 
     Sam Lantinga
     slouken@libsdl.org
+
+    Falco Girgis
+    gyrovorbis@gmail.com
 */
 #define HAVE_O_CLOEXEC 1
 #include "SDL_config.h"
@@ -35,41 +38,32 @@
 #include "SDL_error.h"
 #include "../SDL_timer_c.h"
 
-static SDL_bool ticks_started = SDL_FALSE;
 static Uint64 start;
 
+/* Cache the value of KOS's monotonic ms timer when SDL is initialized. */
 void SDL_TicksInit(void)
 {
-    uint32 s, ms;
-	uint64 msec;
-    if (ticks_started) {
+    if (start) {
         return;
     }
-    ticks_started = SDL_TRUE;
-	timer_ms_gettime(&s, &ms);
-	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
-
-	start = (Uint32)msec;
+	start = timer_ms_gettime64();
 }
 
 void SDL_TicksQuit(void)
 {
-    ticks_started = SDL_FALSE;
+    start = 0;
 }
 
+/* SDL Ticks are using KOS's Timer API, which maintains monotonic ticks,
+   using one of the TMUs on the SH4 CPU.
+*/
 Uint64 SDL_GetTicks64(void)
-{
-    uint32 s, ms;
-	uint64 msec;    
-    if (!ticks_started) {
+{ 
+    if (!start) {
         SDL_TicksInit();
     }
 
-    // Implement time retrieval logic
-	timer_ms_gettime(&s, &ms);
-	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
-
-	return (Uint32)msec - start;
+	return timer_ms_gettime64() - start;
 }
 
 void SDL_Delay(Uint32 ms)
@@ -78,19 +72,24 @@ void SDL_Delay(Uint32 ms)
     thd_sleep(ms);
 }
 
+/* Retrieve real 5ns resolution performance counter ticks.
+   NOTE: Like any real performance counter, they cease to increment
+         while the processor is asleep ("SLEEP" instruction on SH4,
+         happens in the KOS idle thread).
+   
+   NOTE: If the user were to manually take control over the performance
+         counter KOS uses for maintaining these ticks, the driver is smart
+         enough to fall back to TMU-ticks from the timer.h driver, which has
+         80ns maximum resolution. 
+*/
 Uint64 SDL_GetPerformanceCounter(void)
 {
-    uint32 s, ms;
-	uint64 msec;       
-	timer_ms_gettime(&s, &ms);
-	msec = (((uint64)s) * ((uint64)1000)) + ((uint64)ms);
-
-	return (Uint32)msec;
+    return perf_cntr_timer_ns();
 }
 
 Uint64 SDL_GetPerformanceFrequency(void)
 {
-    return 1000000;
+    return 1000000000;
 }
 
 

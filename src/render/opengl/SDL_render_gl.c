@@ -1904,6 +1904,9 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
     if (SDL_GL_GetAttribute(SDL_GL_CONTEXT_FLAGS, &value) == 0 &&
         (value & SDL_GL_CONTEXT_DEBUG_FLAG)) {
         data->debug_enabled = SDL_TRUE;
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL debug output enabled.");
+#endif
     }
     if (data->debug_enabled && SDL_GL_ExtensionSupported("GL_ARB_debug_output")) {
         PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackARBFunc = (PFNGLDEBUGMESSAGECALLBACKARBPROC)SDL_GL_GetProcAddress("glDebugMessageCallbackARB");

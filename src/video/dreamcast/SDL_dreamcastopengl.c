@@ -197,6 +197,7 @@ int DREAMCAST_GL_Initialize(_THIS) {
     // _this->gl_config.double_buffer = 1;
 
     GLdcConfig config;
+    memset(&config, 0, sizeof(GLdcConfig)); // Ensure clean initialization
     glKosInitConfig(&config);
 
     // Manually set each field after initialization

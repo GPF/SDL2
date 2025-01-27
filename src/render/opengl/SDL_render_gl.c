@@ -570,13 +570,11 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             int oldtexture_h = texture->h;
             int texturebpp;
             int newStride;
-            texture_w = SDL_powerof2(texture->w);
-            texture_h = SDL_powerof2(texture->h);
-            texture_w = (texture_w > maxSize) ? maxSize : texture_w;
-            texture_h = (texture_h > maxSize) ? maxSize : texture_h;
+            texture_w = (texture->w <= maxSize) ? SDL_powerof2(texture->w) : maxSize;
+            texture_h = (texture->h <= maxSize) ? SDL_powerof2(texture->h) : maxSize;
 
-            data->texw = (GLfloat)texture->w / texture_w;
-            data->texh = (GLfloat)texture->h / texture_h;
+            data->texw = (GLuint)(roundf(texture->w / texture_w)); // Round to nearest integer
+            data->texh = (GLuint)(roundf(texture->h / texture_h)); // Round to nearest integer
 
             SDL_Log("Dreamcast: Adjusted texture size to power-of-two: oldw=%d, oldh=%d, w=%d, h=%d, maxSize=%d\n", oldtexture_w, oldtexture_h, texture_w, texture_h, maxSize);
 
@@ -665,8 +663,14 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
     } else
 #endif
     {
+SDL_Log("Uploading texture: w=%d, h=%d, texw=%f, texh=%f, format=%d, type=%d",
+    texture_w, texture_h, data->texw, data->texh, format, type);        
         renderdata->glTexImage2D(textype, 0, internalFormat, texture_w,
                                  texture_h, 0, format, type, NULL);
+GLenum err = glGetError();
+if (err != GL_NO_ERROR) {
+    SDL_Log("OpenGL error after glTexImage2D: 0x%X", err);
+}                                 
     }
     renderdata->glDisable(textype);
     if (GL_CheckError("glTexImage2D()", renderer) < 0) {
@@ -1804,7 +1808,8 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 
-#ifndef SDL_VIDEO_VITA_PVR_OGL
+#ifndef SDL_VIDEO_DRIVER_DREAMCAST  // Ensure this block is excluded on Dreamcast
+#ifndef SDL_VIDEO_VITA_PVR_OGL  // Ensure this block is excluded for VITA PVR OpenGL
     window_flags = SDL_GetWindowFlags(window);
     if (!(window_flags & SDL_WINDOW_OPENGL) ||
         profile_mask == SDL_GL_CONTEXT_PROFILE_ES || major != RENDERER_CONTEXT_MAJOR || minor != RENDERER_CONTEXT_MINOR) {
@@ -1818,7 +1823,8 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
             goto error;
         }
     }
-#endif
+#endif  // End of SDL_VIDEO_VITA_PVR_OGL check
+#endif  // End of SDL_VIDEO_DRIVER_DREAMCAST check
 
     data = (GL_RenderData *)SDL_calloc(1, sizeof(*data));
     if (!data) {

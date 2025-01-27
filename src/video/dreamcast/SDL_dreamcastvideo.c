@@ -223,7 +223,7 @@ int DREAMCAST_VideoInit(_THIS) {
     SDL_zero(current_mode);
 
     // Initialize the default display mode
-    current_mode.format = SDL_PIXELFORMAT_RGB565;
+    current_mode.format = SDL_PIXELFORMAT_ARGB1555;
     current_mode.w = width;
     current_mode.h = height;
     current_mode.refresh_rate = 60; // Assume 60Hz for simplicity
@@ -269,7 +269,7 @@ void DREAMCAST_GetDisplayModes(_THIS, SDL_VideoDisplay *display) {
         SDL_zero(mode);
         mode.w = supported_modes[i][0];
         mode.h = supported_modes[i][1];
-        mode.format = SDL_PIXELFORMAT_RGB565; // Change as necessary
+        mode.format = SDL_PIXELFORMAT_ARGB1555; // Change as necessary
         mode.refresh_rate = refresh_rate;
         SDL_AddDisplayMode(display, &mode);
     }
@@ -340,13 +340,13 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
 
     // Ensure mode->format is set
     if (mode->format == 0) {
-        mode->format = SDL_PIXELFORMAT_RGB565;  // Default pixel format
+        mode->format = SDL_PIXELFORMAT_ARGB1555;  // Default pixel format
     }
 
     // Map SDL pixel format to Dreamcast pixel mode
     switch (mode->format) {
         case SDL_PIXELFORMAT_ARGB1555:
-            pixel_mode = PM_RGB555;
+            pixel_mode = PM_RGB0888;
             break;
         case SDL_PIXELFORMAT_RGB565:
             pixel_mode = PM_RGB565;

@@ -156,11 +156,11 @@ for (int y = 0; y < converted_surface1->h; ++y) {
         int pixelIndex = y * converted_surface1->w + x;
 
         // Swap BGR to RGB
-        Uint32 pixel = pixels[pixelIndex];
-        Uint8 r = pixel & 0xFF;
-        Uint8 g = (pixel >> 8) & 0xFF;
-        Uint8 b = (pixel >> 16) & 0xFF;
-        pixels[pixelIndex] = (pixel & 0xFF000000) | (r << 16) | (g << 8) | b;
+        // Uint32 pixel = pixels[pixelIndex];
+        // Uint8 r = pixel & 0xFF;
+        // Uint8 g = (pixel >> 8) & 0xFF;
+        // Uint8 b = (pixel >> 16) & 0xFF;
+        // pixels[pixelIndex] = (pixel & 0xFF000000) | (r << 16) | (g << 8) | b;
 
         // Set transparency based on first pixel color
         if ((pixels[pixelIndex] & 0x00FFFFFF) == pixel0Color) {

@@ -37,6 +37,13 @@
 #include <GL/glext.h>
 #endif
 
+// #if defined(SDL_VIDEO_DRIVER_DREAMCAST) && defined(SDL_VIDEO_OPENGL)
+// #include <kos.h>
+// #include "GL/gl.h"
+// #include "GL/glu.h"
+// #include "GL/glkos.h"
+// #endif
+
 /* To prevent unnecessary window recreation,
  * these should match the defaults selected in SDL_GL_ResetAttributes
  */
@@ -523,7 +530,6 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             SDL_free(data);
             return SDL_OutOfMemory();
         }
-
     }
 
     if (texture->access == SDL_TEXTUREACCESS_TARGET) {
@@ -559,7 +565,6 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
         int isPowerOfTwoWidth;
         int isPowerOfTwoHeight;
 
-
         renderdata->glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
 
         isPowerOfTwoWidth = (texture->w & (texture->w - 1)) == 0;
@@ -570,11 +575,14 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             int oldtexture_h = texture->h;
             int texturebpp;
             int newStride;
+
+            // Adjust the width and height to the nearest power-of-two size
             texture_w = (texture->w <= maxSize) ? SDL_powerof2(texture->w) : maxSize;
             texture_h = (texture->h <= maxSize) ? SDL_powerof2(texture->h) : maxSize;
 
-            data->texw = (GLuint)(roundf(texture->w / texture_w)); // Round to nearest integer
-            data->texh = (GLuint)(roundf(texture->h / texture_h)); // Round to nearest integer
+            // Normalize texw and texh after adjustment to power-of-two
+            data->texw = (GLfloat)(texture->w) / texture_w;
+            data->texh = (GLfloat)(texture->h) / texture_h;
 
             SDL_Log("Dreamcast: Adjusted texture size to power-of-two: oldw=%d, oldh=%d, w=%d, h=%d, maxSize=%d\n", oldtexture_w, oldtexture_h, texture_w, texture_h, maxSize);
 
@@ -588,34 +596,12 @@ static int GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture)
             texture_h = texture->h;
             data->texw = 1.0f;
             data->texh = 1.0f;
-            //  SDL_Log("Dreamcast: Texture size is power-of-two: w=%d, h=%d\n", texture_w, texture_h);
         }
-   // Adjust pixel data only if the format is RGB888
-    // if (texture->format == SDL_PIXELFORMAT_RGB888) {
-    //     SDL_SetColorKey(data->pixels, 1, *((Uint8 *)data->pixels));
-    //     Uint32 *pixels = (Uint32 *)data->pixels;
-    //     for (int y = 0; y < texture_h; ++y) {
-    //         for (int x = 0; x < texture_w; ++x) {
-    //             Uint32 pixel = pixels[y * texture_w + x];
-
-    //             // Extract ARGB values
-    //             Uint8 a = (pixel >> 24) & 0xFF;
-    //             Uint8 r = (pixel >> 16) & 0xFF;
-    //             Uint8 g = (pixel >> 8) & 0xFF;
-    //             Uint8 b = pixel & 0xFF;
-
-    //             // Swap B and R
-    //             Uint32 corrected_pixel = (a << 24) | (b << 16) | (g << 8) | r;
-    //             pixels[y * texture_w + x] = corrected_pixel;
-    //         }
-    //     }
-    //     SDL_Log("Dreamcast: RGB888 texture, ensure conversion to ARGB8888 for proper blending.\n");
-    // }
 #else
-    texture_w = SDL_powerof2(texture->w);
-    texture_h = SDL_powerof2(texture->h);
-    data->texw = (GLfloat)(texture->w) / texture_w;
-    data->texh = (GLfloat)texture->h / texture_h;
+        texture_w = SDL_powerof2(texture->w);
+        texture_h = SDL_powerof2(texture->h);
+        data->texw = (GLfloat)(texture->w) / texture_w;
+        data->texh = (GLfloat)texture->h / texture_h;
 #endif
 }
 
@@ -797,13 +783,34 @@ static int GL_UpdateTexture(SDL_Renderer *renderer, SDL_Texture *texture,
 
     renderdata->drawstate.texture = NULL; /* we trash this state. */
 
+    // Log texture and rectangle details
+    // SDL_Log("GL_UpdateTexture: Binding texture ID: %u, updating region x=%d, y=%d, w=%d, h=%d", 
+    //         data->texture, rect->x, rect->y, rect->w, rect->h);
+    
     renderdata->glBindTexture(textype, data->texture);
+    
     renderdata->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (pitch / texturebpp));
 
+    // Log the first few pixels in the region being updated (for debugging)
+    // const Uint8 *pixel_data = (const Uint8 *)pixels;
+    // SDL_Log("First few pixels in update (in bytes): ");
+    // for (int i = 0; i < 16 && i < rect->w * rect->h * texturebpp; i++) {
+    //     SDL_Log("Pixel[%d]: 0x%02X", i, pixel_data[i]);
+    // }
+
+    // Update the texture with the new pixel data
     renderdata->glTexSubImage2D(textype, 0, rect->x, rect->y, rect->w,
                                 rect->h, data->format, data->formattype,
                                 pixels);
+
+    // GLenum err = glGetError();
+    // if (err != GL_NO_ERROR) {
+    //     SDL_Log("OpenGL error during glTexSubImage2D: 0x%X", err);
+    //     return -1; // Return failure if an error occurred
+    // }
+
+    // SDL_Log("Texture update complete.");
 #if SDL_HAVE_YUV
     if (data->yuv) {
         renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, ((pitch + 1) / 2));
@@ -1808,23 +1815,86 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 
-#ifndef SDL_VIDEO_DRIVER_DREAMCAST  // Ensure this block is excluded on Dreamcast
-#ifndef SDL_VIDEO_VITA_PVR_OGL  // Ensure this block is excluded for VITA PVR OpenGL
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST  // Only log for Dreamcast
+    SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Dreamcast renderer initialization started.");
+#endif
+
+// #if defined(SDL_VIDEO_DRIVER_DREAMCAST)  // Run this block only for Dreamcast
+
+//     window_flags = SDL_GetWindowFlags(window);
+
+//     // Log if Dreamcast-specific code is being executed
+//     SDL_Log("SDL2 Dreamcast: Checking window flags and OpenGL context.");
+
+//     // Proceed only if the window isn't already an OpenGL window, or the context version is incorrect
+//     if (!(window_flags & SDL_WINDOW_OPENGL) || major != RENDERER_CONTEXT_MAJOR || minor != RENDERER_CONTEXT_MINOR) {
+
+//         changed_window = SDL_TRUE;
+
+//         // Log the context settings for Dreamcast
+//         SDL_Log("SDL2 Dreamcast: Setting OpenGL context attributes - major: %d, minor: %d", RENDERER_CONTEXT_MAJOR, RENDERER_CONTEXT_MINOR);
+
+//         // Set OpenGL context attributes for Dreamcast (no Vulkan/Metal logic here)
+//         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0);  // No need for profile check on Dreamcast
+//         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, RENDERER_CONTEXT_MAJOR);
+//         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, RENDERER_CONTEXT_MINOR);
+
+//         // Log before recreating the window
+//         SDL_Log("SDL2 Dreamcast: Recreating window with OpenGL context.");
+
+//         // Recreate the window with OpenGL for Dreamcast
+//         if (SDL_RecreateWindow(window, window_flags | SDL_WINDOW_OPENGL) < 0) {
+//             SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL2 Dreamcast: Failed to recreate window with OpenGL context.");
+//             goto error;  // Handle window creation failure
+//         }
+
+//         // Log if everything goes fine
+//         SDL_Log("SDL2 Dreamcast: OpenGL window recreated successfully.");
+
+//     } else {
+//         SDL_Log("SDL2 Dreamcast: Window already has correct OpenGL context, skipping recreation.");
+//     }
+
+#if !defined(SDL_VIDEO_VITA_PVR_OGL)  // Exclude VITA-related code for Dreamcast
+
+    // Ensure this block is excluded for VITA PVR OpenGL
     window_flags = SDL_GetWindowFlags(window);
-    if (!(window_flags & SDL_WINDOW_OPENGL) ||
-        profile_mask == SDL_GL_CONTEXT_PROFILE_ES || major != RENDERER_CONTEXT_MAJOR || minor != RENDERER_CONTEXT_MINOR) {
+
+    // Log if VITA-related code is being skipped for Dreamcast
+    SDL_Log("SDL2: Skipping Vulkan/Metal logic for Dreamcast.");
+
+    // Proceed only if the window isn't already an OpenGL window, or the context version is incorrect
+    if (!(window_flags & SDL_WINDOW_OPENGL) || major != RENDERER_CONTEXT_MAJOR || minor != RENDERER_CONTEXT_MINOR) {
 
         changed_window = SDL_TRUE;
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0);
+
+        // Log the context settings
+        SDL_Log("SDL2: Setting OpenGL context attributes for major: %d, minor: %d", RENDERER_CONTEXT_MAJOR, RENDERER_CONTEXT_MINOR);
+
+        // Set OpenGL context attributes
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, 0);  // No need for profile check for Dreamcast
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, RENDERER_CONTEXT_MAJOR);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, RENDERER_CONTEXT_MINOR);
 
-        if (SDL_RecreateWindow(window, (window_flags & ~(SDL_WINDOW_VULKAN | SDL_WINDOW_METAL)) | SDL_WINDOW_OPENGL) < 0) {
-            goto error;
+        // Log before recreating the window
+        SDL_Log("SDL2: Recreating window with OpenGL context.");
+
+        // Recreate the window with OpenGL
+        if (SDL_RecreateWindow(window, window_flags | SDL_WINDOW_OPENGL) < 0) {
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SDL2: Failed to recreate window with OpenGL context.");
+            goto error;  // Handle window creation failure
         }
+
+        // Log if everything goes fine
+        SDL_Log("SDL2: OpenGL window recreated successfully.");
+
+    } else {
+        SDL_Log("SDL2: Window already has correct OpenGL context, skipping recreation.");
     }
-#endif  // End of SDL_VIDEO_VITA_PVR_OGL check
-#endif  // End of SDL_VIDEO_DRIVER_DREAMCAST check
+
+#endif
+
+
 
     data = (GL_RenderData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
@@ -1863,12 +1933,19 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
     renderer->driverdata = data;
     renderer->window = window;
 
-    data->context = SDL_GL_CreateContext(window);
-    if (!data->context) {
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST
+SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);  // OpenGL 1.x for compatibility
+SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#endif
+data->context = SDL_GL_CreateContext(window);
+if (!data->context) {
         SDL_free(data);
         goto error;
     }
     if (SDL_GL_MakeCurrent(window, data->context) < 0) {
+#ifdef SDL_VIDEO_DRIVER_DREAMCAST
+        SDL_LogError(SDL_LOG_CATEGORY_RENDER, "Failed to make OpenGL context current on Dreamcast.");
+#endif
         SDL_GL_DeleteContext(data->context);
         SDL_free(data);
         goto error;
@@ -1882,6 +1959,9 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
 
     if (GL_IsProbablyAccelerated(data)) {
         renderer->info.flags |= SDL_RENDERER_ACCELERATED;
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL acceleration enabled.");
+    } else {
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "OpenGL acceleration not enabled.");
     }
 
 #ifdef __MACOSX__
@@ -1898,6 +1978,7 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
     }
     if (SDL_GL_GetSwapInterval() != 0) {
         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+        SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "VSync enabled.");
     }
 
     /* Check for debug output support */
@@ -1938,6 +2019,7 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
         }
         if (isGL2 || SDL_GL_ExtensionSupported("GL_ARB_texture_non_power_of_two")) {
             non_power_of_two_supported = SDL_TRUE;
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Non-power-of-two textures supported.");
         }
     }
 
@@ -1966,6 +2048,7 @@ static int GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 
         if (data->glActiveTextureARB) {
             data->GL_ARB_multitexture_supported = SDL_TRUE;
             data->glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &data->num_texture_units);
+            SDL_LogInfo(SDL_LOG_CATEGORY_RENDER, "Multitexture supported.");
         }
     }
 

@@ -102,7 +102,7 @@ static int DREAMCAST_JoystickGetCount(void) {
             count++;
         }
     }
-    printf("Number of joysticks detected: %d\n", count);
+    // printf("Number of joysticks detected: %d\n", count);
     return count;
 }
 

@@ -87,6 +87,12 @@ macro(add_sdl_test_executable TARGET)
     endif()
 endmacro()
 
+if(DREAMCAST)
+    string(REPLACE "-flto=auto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE "-flto=auto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    add_compile_options(-fno-lto)
+endif()
+
 if(NOT TARGET SDL2::SDL2-static)
     find_package(SDL2 2.0.23 REQUIRED COMPONENTS SDL2-static SDL2test)
 endif()

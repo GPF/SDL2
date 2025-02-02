@@ -46,8 +46,9 @@
 /* Enable the stub joystick driver (src/joystick/dreamcast/\*.c) */
 #define SDL_JOYSTICK_DREAMCAST   1
 
-/* Enable the stub haptic driver (src/haptic/dummy/\*.c) */
-#define SDL_HAPTIC_DISABLED 1
+/* Enable the dreamcast haptic driver (src/haptic/dreamcast/\*.c) */
+#define SDL_HAPTIC 1
+#define SDL_HAPTIC_DREAMCAST 1
 
 /* Enable the stub HIDAPI */
 #define SDL_HIDAPI_DISABLED 1

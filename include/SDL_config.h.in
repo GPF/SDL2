@@ -340,6 +340,8 @@
 #undef SDL_HAPTIC_IOKIT
 #undef SDL_HAPTIC_DINPUT
 #undef SDL_HAPTIC_XINPUT
+#undef SDL_HAPTIC_DREAMCAST
+
 
 /* Enable various sensor drivers */
 #undef SDL_SENSOR_ANDROID

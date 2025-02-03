@@ -6,7 +6,7 @@
 #ifdef DREAMCAST
 #include "kos.h"
 #include "SDL_hints.h"
-#define WAV_PATH "/rd/StarWars60.wav"
+#define WAV_PATH "/rd/StarWars60_adpcm.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else
@@ -41,6 +41,8 @@ static void open_audio(void) {
     SDL_Log("  Format: %d", wave.spec.format);
     SDL_Log("  Channels: %d", wave.spec.channels);
     SDL_Log("  Samples: %d", wave.spec.samples);
+    SDL_Log("  soundlen: %d", wave.soundlen);
+    SDL_Log("  soundpos: %d", wave.soundpos);
 
     device = SDL_OpenAudioDevice(NULL, SDL_FALSE, &wave.spec, NULL, 0);
     if (!device) {
@@ -66,24 +68,38 @@ static void reopen_audio(void) {
 #endif
 // void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size);
 void SDLCALL fillerup(void *userdata, Uint8 *stream, int len) {
-    // Fill the stream directly
-    // userdata can contain any necessary state information
-    // SDL_Log("fillerup\n");
+    // Fill the stream directly with ADPCM data
+    // SDL_Log("  soundpos: %d", wave.soundpos);
     Uint8 *waveptr = wave.sound + wave.soundpos;
     int waveleft = wave.soundlen - wave.soundpos;
+    
+    while (waveleft > 0 && len > 0) {
+        // Determine the size of the chunk to copy (min of remaining data and stream space)
+        int chunk = (waveleft < len) ? waveleft : len;
 
-    while (waveleft <= len) {
-        SDL_memcpy(stream, waveptr, waveleft);
-        stream += waveleft;
-        len -= waveleft;
-        waveptr = wave.sound;
-        waveleft = wave.soundlen;
-        wave.soundpos = 0;
+        // Copy the chunk of data into the stream
+        SDL_memcpy(stream, waveptr, chunk);
+
+        // Update pointers and remaining data
+        stream += chunk;
+        len -= chunk;
+        waveptr += chunk;
+        waveleft -= chunk;
     }
 
-    SDL_memcpy(stream, waveptr, len);
-    wave.soundpos += len;
+    // Update the position in the buffer for the next callback
+    wave.soundpos = waveptr - wave.sound;
+
+    // If we reach the end of the sound data and want to stop playback or loop:
+    if (wave.soundpos >= wave.soundlen) {
+        // Option 1: Stop playback when the sound finishes
+        // SDL_PauseAudio(1); // Uncomment if you want to stop audio when done
+
+        // Option 2: Loop the audio by resetting the sound position
+        wave.soundpos = 0; // Uncomment if you want to loop the sound
+    }
 }
+
 
 static int done = 0;
 
@@ -104,6 +120,7 @@ int main(int argc, char *argv[]) {
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
     // SDL_SetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC, "0");
+
     /* Load the SDL library */
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
@@ -128,16 +145,28 @@ int main(int argc, char *argv[]) {
         SDL_Quit(); 
         return 1;  
     } 
+        SDL_SetHint("SDL_AUDIO_ADPCM_STREAM_DC", "1");
+    SDL_Log("Loading %s\n", filename);
+/* Check if the file exists and is accessible before attempting to load */
+FILE *testfile = fopen(filename, "rb");
+if (!testfile) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "File not found or cannot be accessed: %s\n", filename);
+    quit(1);
+} else {
+    SDL_Log("File  found or can be accessed: %s\n", filename);
+    fclose(testfile); // File is accessible
+}
 
+    SDL_Log("SDL_LoadWAV %s\n", filename);
     /* Load the wave file into memory */
     if (SDL_LoadWAV(filename, &wave.spec, &wave.sound, &wave.soundlen) == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         quit(1);
     }
-    // wave.spec.freq= 44100;
+    // wave.spec.freq= 22050;
     // wave.spec.format    = AUDIO_S16LSB;
     // wave.spec.channels = 1;
-    // wave.spec.samples = 4096;
+    wave.spec.samples = 512;
     wave.spec.callback = fillerup;
 
     /* Show the list of available drivers */

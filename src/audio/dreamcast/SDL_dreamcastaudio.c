@@ -41,149 +41,44 @@ static Uint8 * DREAMCASTAUD_GetDeviceBuf(_THIS) {
     return hidden->mixbuf[hidden->buffer];
 }
 
-// // Stream callback function
-// static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
-//     SDL_AudioDevice *device = audioDevice;
-//     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
-//     Uint8 *buffer = (Uint8 *)DREAMCASTAUD_GetDeviceBuf(device);
-//     int buffer_size = hidden->buffer_size;
-//     int bytes_to_copy = SDL_min(req, buffer_size);
-//     int remaining = bytes_to_copy;
-//     SDL_AudioCallback callback;
-
-//     SDL_LockMutex(device->mixer_lock);
-
-//     if (!buffer) {
-//         SDL_Log("Buffer is NULL.");
-//         *done = 0;
-//         SDL_UnlockMutex(device->mixer_lock);
-//         return NULL;
-//     }
-
-//     callback = device->callbackspec.callback;
-
-//     // Handle paused or disabled audio
-//     if (!SDL_AtomicGet(&device->enabled) || SDL_AtomicGet(&device->paused)) {
-//         if (device->stream) {
-//             SDL_AudioStreamClear(device->stream);
-//         }
-//         SDL_memset(buffer, device->callbackspec.silence, bytes_to_copy);
-//     } else 
-//     // {
-//     //     if (hidden->direct_buffer_access) {
-//     //         Uint8 *writable_buffer = NULL;
-//     //         int writable_size = 0;
-
-//     //         SDL_DC_SetSoundBuffer(&writable_buffer, &writable_size);
-//     //         int bytes_to_copy = SDL_min(req, writable_size);
-
-//     //         // Call the client callback directly to fill the buffer
-//     //         device->callbackspec.callback(device->callbackspec.userdata, writable_buffer, bytes_to_copy);
-//     //         hidden->write_index = (hidden->write_index + bytes_to_copy) % hidden->buffer_size;
-
-            
-//     //     }
-//     //      else
-//           {
-//             // Fall back to the existing behavior with memcpy
-//             if (!device->stream) {
-//                 // callback(device->callbackspec.userdata, buffer, bytes_to_copy);
-//             } else {
-//                 while (SDL_AudioStreamAvailable(device->stream) < bytes_to_copy) {
-//                     // callback(device->callbackspec.userdata, hidden->buffer, buffer_size);
-//                     if (SDL_AudioStreamPut(device->stream, buffer, buffer_size) == -1) {
-//                         SDL_AudioStreamClear(device->stream);
-//                         SDL_AtomicSet(&device->enabled, 0);
-//                         break;
-//                     }
-//                 }
-
-//                 int got = SDL_AudioStreamGet(device->stream, buffer, bytes_to_copy);
-//                 if (got != bytes_to_copy) {
-//                     SDL_memset(buffer, device->callbackspec.silence, bytes_to_copy);
-//                 }
-//             }
-//         }
-    
-
-//     SDL_UnlockMutex(device->mixer_lock);
-
-//     *done = req;
-//     return buffer;
-// }
-
 // Stream callback function
 static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
     SDL_AudioDevice *device = audioDevice;
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
     int buffer_size = hidden->buffer_size;
-    int bytes_to_copy = SDL_min(req, buffer_size);
-    // SDL_Log("stream_callback");
-    SDL_LockMutex(device->mixer_lock);
-    // Obtain the buffer from SDL's device buffer
-    Uint8 *buffer = (Uint8 *)DREAMCASTAUD_GetDeviceBuf(device);
-    SDL_UnlockMutex(device->mixer_lock);
-    *done = bytes_to_copy;
-    return buffer;
-    
+    *done = 0;
+    Uint8 *buffer;
+    // Only fill the buffer if it's marked as "ready"
+    if (hidden->buffer_ready) {
+        buffer = (Uint8 *)DREAMCASTAUD_GetDeviceBuf(device);
+        *done = SDL_min(req, buffer_size);
+        hidden->buffer_ready = 0; // Mark buffer as consumed
+        SDL_Log("stream_callback - filled %d bytes", *done);
+    }
+
+   return buffer;
 }
-
-
-// Thread function for audio playback
-// static int SDLCALL DREAMCASTAUD_Thread(void *data) {
-//     SDL_AudioDevice *device = (SDL_AudioDevice *)data;
-//     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
-
-//     SDL_Log("Audio thread started\n");
-
-//     while (SDL_AtomicGet(&device->enabled)) {
-//         // Call snd_stream_poll to check if more audio data is needed
-//         SDL_Log("snd_stream_poll");
-//         int result = snd_stream_poll(hidden->stream_handle);
-//         if (result < 0) {
-//             SDL_Log("snd_stream_poll failed: %d\n", result);
-//             SDL_AtomicSet(&device->enabled, 0);
-//             break;
-//         }
-//         SDL_Delay(10); // Avoid busy looping
-//     }
-
-//     SDL_Log("Audio thread exiting\n");
-
-//     return 0;
-// }
 
 static void DREAMCASTAUD_WaitDevice(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
+    if (SDL_AtomicGet(&_this->paused)) return;
 
-    if (SDL_AtomicGet(&_this->paused)) {
-        // SDL_Log("Audio is not enabled or is paused, skipping buffer switch.");
-        return;
-    }
-    // Get the current buffer pointer
-    Uint8 *current_buffer = DREAMCASTAUD_GetDeviceBuf(_this);
-    
-    // Wait until the position moves to the next buffer
-    while (snd_get_pos(hidden->stream_handle) /  (_this->spec.samples )  == (current_buffer == hidden->mixbuf[0] ? 0 : 1)) {
+    // Wait until the current buffer is no longer marked as ready
+    while (hidden->buffer_ready) {
         snd_stream_poll(hidden->stream_handle);
-        SDL_Delay(5);
-        // SDL_Log("DREAMCASTAUD_WaitDevice - waiting for buffer switch %d",snd_get_pos(hidden->stream_handle));
+        SDL_Delay(1);
     }
+
+    
 }
 static void DREAMCASTAUD_PlayDevice(_THIS) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)_this->hidden;
-    
-    // Check if audio is enabled and not paused
-    if (SDL_AtomicGet(&_this->paused)) {
-        // SDL_Log("Audio is not enabled or is paused, skipping buffer switch.");
-        return;
-    }
+    if (SDL_AtomicGet(&_this->paused)) return;
 
-    // SDL_Log("DREAMCASTAUD_PlayDevice");
-    DREAMCASTAUD_WaitDevice(_this);  // Wait for the current buffer to be played
-
-    // Switch buffer for the next fill by SDL2
-    hidden->buffer ^= 1;  // Toggle between 0 and 1 for buffer index
+    DREAMCASTAUD_WaitDevice(_this);
+    hidden->buffer_ready = 1; // Signal that the buffer is ready for filling
+    hidden->buffer ^= 1; // Toggle buffer index
+    SDL_Log("Switched to buffer %d", hidden->buffer);
 }
 
 
@@ -235,15 +130,15 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     SDL_zerop(hidden);
     _this->hidden = (struct SDL_PrivateAudioData*)hidden;
 
-    // Read the hint for direct buffer access
-    hint_value = SDL_GetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC);
-    if (hint_value && SDL_strcasecmp(hint_value, "1") == 0) {
-        hidden->direct_buffer_access = SDL_TRUE;
-        SDL_Log("Direct buffer access enabled for Dreamcast audio driver.");
-    } else {
-        hidden->direct_buffer_access = SDL_FALSE;
-        SDL_Log("Direct buffer access disabled for Dreamcast audio driver.");
-    }
+    // // Read the hint for direct buffer access -- Not supported yet
+    // hint_value = SDL_GetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC);
+    // if (hint_value && SDL_strcasecmp(hint_value, "1") == 0) {
+    //     hidden->direct_buffer_access = SDL_TRUE;
+    //     SDL_Log("Direct buffer access enabled for Dreamcast audio driver.");
+    // } else {
+    //     hidden->direct_buffer_access = SDL_FALSE;
+    //     SDL_Log("Direct buffer access disabled for Dreamcast audio driver.");
+    // }
 
     // Initialize sound stream system
     if (snd_stream_init() != 0) {
@@ -291,7 +186,7 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
 
     // Set stream callback and start playback
     snd_stream_reinit(hidden->stream_handle, stream_callback);
-    snd_stream_volume(hidden->stream_handle, 255); // Max volume
+    // snd_stream_volume(hidden->stream_handle, 128); // half volume
 
     channels = _this->spec.channels;
     frequency = _this->spec.freq;
@@ -305,11 +200,15 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     // }
     
     // Check the audio format and initialize the stream accordingly
-    if (_this->spec.format == AUDIO_S16LSB) {
-        // Initialize stream for 16-bit PCM
+    const char *adpcm_hint = SDL_GetHint("SDL_AUDIO_ADPCM_STREAM_DC");
+    if (adpcm_hint && SDL_strcmp(adpcm_hint, "1") == 0) {
+        SDL_LogMessage(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO, "4-bit ADPCM audio format enabled\n");
+        fflush(stdout);
+        // hidden->use_adpcm = SDL_TRUE;
+        snd_stream_start_adpcm(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
+    } else if (_this->spec.format == AUDIO_S16LSB) {
         snd_stream_start(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
     } else if (_this->spec.format == AUDIO_S8) {
-        // Initialize stream for 8-bit PCM
         snd_stream_start_pcm8(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
     } else {
         SDL_SetError("Unsupported audio format: %d", _this->spec.format);
@@ -326,6 +225,9 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname) {
     //     return SDL_SetError("Failed to create audio thread");
     // }
 
+    // Store the KOS sound stream handle in SDL's userdata field - so can be used to call sound stream api functions directly for volume control etc.
+    _this->spec.userdata = (void *)(intptr_t)hidden->stream_handle;
+    hidden->buffer_ready = 0; 
     SDL_Log("Dreamcast audio driver initialized\n");
     return 0;
 }

@@ -38,6 +38,8 @@ typedef struct {
     int buffer_size;                 // Total size of the buffer
     Uint8 *mixbuf[2];                // Two buffers for double buffering
     int playing;                // Indicates if the audio is currently playing
+    int next_buffer;
+    SDL_bool buffer_ready;         // 
     SDL_bool direct_buffer_access;   // Flag to enable direct buffer access
 } SDL_PrivateAudioData;
 

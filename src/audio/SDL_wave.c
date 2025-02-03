@@ -2077,6 +2077,62 @@ static int WaveLoad(SDL_RWops *src, WaveFile *file, SDL_AudioSpec *spec, Uint8 *
     return 0;
 }
 
+static int ADPCMLoad(SDL_RWops *src, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len) {
+    Uint8 header[100];
+    if (SDL_RWread(src, header, sizeof(header), 1) != 1) {
+        return SDL_SetError("Failed to read ADPCM header");
+    }
+
+    // Parse the fmt chunk
+    Uint16 audioFormat = (header[21] << 8) | header[20];
+    Uint16 channels = (header[23] << 8) | header[22];
+    Uint32 sampleRate = (header[27] << 24) | (header[26] << 16) | (header[25] << 8) | header[24];
+    Uint16 bitsPerSample = (header[35] << 8) | header[34];
+    Uint16 blockAlign = (header[33] << 8) | header[32];
+
+    // Validate the format (accept both 0x0020 and 0x0072 if needed)
+    if (audioFormat != 0x0020) { // Allow Microsoft ADPCM tag for Dreamcast compatibility
+        return SDL_SetError("Unsupported ADPCM format (expected 0x0020)");
+    }
+
+    // Skip to the data chunk
+    Uint32 fmtSize = (header[19] << 24) | (header[18] << 16) | (header[17] << 8) | header[16];
+    int offset = 20 + fmtSize;
+
+    // Skip 'fact' and 'LIST' chunks if present
+    while (1) {
+        if (offset + 8 > sizeof(header)) break; // Prevent overflow
+        char chunkID[5] = { header[offset], header[offset+1], header[offset+2], header[offset+3], 0 };
+        Uint32 chunkSize = (header[offset+7] << 24) | (header[offset+6] << 16) | (header[offset+5] << 8) | header[offset+4];
+        
+        if (strcmp(chunkID, "data") == 0) {
+            *audio_len = chunkSize;
+            SDL_RWseek(src, offset + 8, RW_SEEK_SET);
+            break;
+        } else {
+            offset += 8 + chunkSize;
+        }
+    }
+
+    // Read the ADPCM data
+    *audio_buf = (Uint8 *)SDL_malloc(*audio_len);
+    if (!*audio_buf) return SDL_SetError("Out of memory");
+    if (SDL_RWread(src, *audio_buf, *audio_len, 1) != 1) {
+        SDL_free(*audio_buf);
+        return SDL_SetError("Failed to read ADPCM data");
+    }
+
+    // Configure SDL_AudioSpec for Dreamcast ADPCM
+    SDL_zero(*spec);
+    spec->freq = sampleRate;
+    spec->format = AUDIO_S16LSB; // Custom format indicating ADPCM
+    spec->channels = channels;
+    spec->samples = blockAlign * 2; // Make sure it's a multiple of the ADPCM block size
+    spec->size = *audio_len;
+
+    return 0;
+}
+
 SDL_AudioSpec *SDL_LoadWAV_RW(SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len)
 {
     int result;
@@ -2099,29 +2155,52 @@ SDL_AudioSpec *SDL_LoadWAV_RW(SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, 
         return NULL;
     }
 
-    *audio_buf = NULL;
-    *audio_len = 0;
+    /* Check if ADPCM streaming is explicitly enabled */
+    const char *adpcm_hint = SDL_GetHint("SDL_AUDIO_ADPCM_STREAM_DC");
+    if (adpcm_hint && SDL_strcmp(adpcm_hint, "1") == 0) {
+        result = ADPCMLoad(src, spec, audio_buf, audio_len);
+        SDL_Log("ADPCM data loaded, buffer size: %d bytes", *audio_len);
+    } else {
+        *audio_buf = NULL;
+        *audio_len = 0;
 
-    file.riffhint = WaveGetRiffSizeHint();
-    file.trunchint = WaveGetTruncationHint();
-    file.facthint = WaveGetFactChunkHint();
+        file.riffhint = WaveGetRiffSizeHint();
+        file.trunchint = WaveGetTruncationHint();
+        file.facthint = WaveGetFactChunkHint();
 
-    result = WaveLoad(src, &file, spec, audio_buf, audio_len);
+        result = WaveLoad(src, &file, spec, audio_buf, audio_len);
+    }
+
     if (result < 0) {
         SDL_free(*audio_buf);
         spec = NULL;
-        audio_buf = NULL;
-        audio_len = 0;
+        *audio_buf = NULL;
+        *audio_len = 0;
     }
 
     /* Cleanup */
     if (freesrc) {
         SDL_RWclose(src);
     } else {
-        SDL_RWseek(src, file.chunk.position, RW_SEEK_SET);
+        // No need to seek back in ADPCM case, but for consistency:
+        if (adpcm_hint && SDL_strcmp(adpcm_hint, "1") == 0) {
+            // ADPCM doesn't use file.chunk.position, so do nothing
+        } else {
+            SDL_RWseek(src, file.chunk.position, RW_SEEK_SET);
+        }
     }
-    WaveFreeChunkData(&file.chunk);
-    SDL_free(file.decoderdata);
+
+    // Cleanup based on whether we used ADPCM or not
+    if (adpcm_hint && SDL_strcmp(adpcm_hint, "1") == 0) {
+        if (result == 0) {
+            // ADPCM cleanup, we free the buffer here since it's not used after this point
+            SDL_free(*audio_buf);
+        }
+    } else {
+        // Regular WAV file cleanup
+        WaveFreeChunkData(&file.chunk);
+        SDL_free(file.decoderdata);
+    }
 
     return spec;
 }

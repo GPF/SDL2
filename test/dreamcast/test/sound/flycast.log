@@ -1,0 +1,44 @@
+00:00:000 sdl/sdl.cpp:722 N[RENDERER]: Monitor refresh rate: 60 Hz (2560 x 1440)
+00:00:027 ui/gui.cpp:331 N[RENDERER]: Screen DPI is 96, size 678 x 444. Scaling by 1.00
+00:00:032 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.2
+00:00:032 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'Microsoft Corporation' Renderer 'D3D12 (AMD Radeon RX 6700 XT)' Version '4.2 (Compatibility Profile) Mesa 22.3.6'
+00:00:059 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:093 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f9f04100000 RAM(32 MB) 0x7f9f10100000 VRAM64(8 MB) 0x7f9f08100000 ARAM(2 MB) 0x7f9f24100000
+00:00:104 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:119 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f9f04100000 RAM(32 MB) 0x7f9f10100000 VRAM64(8 MB) 0x7f9f08100000 ARAM(2 MB) 0x7f9f24100000
+00:00:148 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:148 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:148 reios/reios.cpp:624 N[REIOS]: -----------------
+00:00:000 sdl/sdl.cpp:722 N[RENDERER]: Monitor refresh rate: 60 Hz (2560 x 1440)
+00:00:027 ui/gui.cpp:331 N[RENDERER]: Screen DPI is 96, size 678 x 444. Scaling by 1.00
+00:00:033 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.2
+00:00:033 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'Microsoft Corporation' Renderer 'D3D12 (AMD Radeon RX 6700 XT)' Version '4.2 (Compatibility Profile) Mesa 22.3.6'
+00:00:059 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:093 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7fbf00e90000 RAM(32 MB) 0x7fbf0ce90000 VRAM64(8 MB) 0x7fbf04e90000 ARAM(2 MB) 0x7fbf20e90000
+00:00:106 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:120 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7fbf00e90000 RAM(32 MB) 0x7fbf0ce90000 VRAM64(8 MB) 0x7fbf04e90000 ARAM(2 MB) 0x7fbf20e90000
+00:00:152 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:153 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:153 reios/reios.cpp:624 N[REIOS]: -----------------
+00:00:000 sdl/sdl.cpp:722 N[RENDERER]: Monitor refresh rate: 60 Hz (2560 x 1440)
+00:00:028 ui/gui.cpp:331 N[RENDERER]: Screen DPI is 96, size 678 x 444. Scaling by 1.00
+00:00:034 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.2
+00:00:034 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'Microsoft Corporation' Renderer 'D3D12 (AMD Radeon RX 6700 XT)' Version '4.2 (Compatibility Profile) Mesa 22.3.6'
+00:00:060 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:094 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f6004330000 RAM(32 MB) 0x7f6010330000 VRAM64(8 MB) 0x7f6008330000 ARAM(2 MB) 0x7f6024330000
+00:00:107 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:122 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f6004330000 RAM(32 MB) 0x7f6010330000 VRAM64(8 MB) 0x7f6008330000 ARAM(2 MB) 0x7f6024330000
+00:00:152 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:152 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:152 reios/reios.cpp:624 N[REIOS]: -----------------
+00:00:000 sdl/sdl.cpp:722 N[RENDERER]: Monitor refresh rate: 60 Hz (2560 x 1440)
+00:00:020 ui/gui.cpp:331 N[RENDERER]: Screen DPI is 96, size 678 x 444. Scaling by 1.00
+00:00:022 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.2
+00:00:022 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'Microsoft Corporation' Renderer 'D3D12 (AMD Radeon RX 6700 XT)' Version '4.2 (Compatibility Profile) Mesa 22.3.6'
+00:00:037 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:070 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f03c6fa0000 RAM(32 MB) 0x7f03d2fa0000 VRAM64(8 MB) 0x7f03cafa0000 ARAM(2 MB) 0x7f03e6fa0000
+00:00:080 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:095 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7f03c6fa0000 RAM(32 MB) 0x7f03d2fa0000 VRAM64(8 MB) 0x7f03cafa0000 ARAM(2 MB) 0x7f03e6fa0000
+00:00:117 reios/reios.cpp:622 N[REIOS]: -----------------
+00:00:117 reios/reios.cpp:623 N[REIOS]: REIOS: Booting up
+00:00:117 reios/reios.cpp:624 N[REIOS]: -----------------

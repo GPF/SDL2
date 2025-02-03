@@ -1,0 +1,8 @@
+00:00:000 sdl/sdl.cpp:722 N[RENDERER]: Monitor refresh rate: 60 Hz (2560 x 1440)
+00:00:023 ui/gui.cpp:331 N[RENDERER]: Screen DPI is 96, size 671 x 531. Scaling by 1.00
+00:00:029 rend/gles/gles.cpp:637 N[RENDERER]: OpenGL version 4.2
+00:00:029 rend/gles/gles.cpp:638 N[RENDERER]: Vendor 'Microsoft Corporation' Renderer 'D3D12 (AMD Radeon RX 6700 XT)' Version '4.2 (Compatibility Profile) Mesa 22.3.6'
+00:00:057 hw/mem/addrspace.cpp:431 N[VMEM]: Info: nvmem is enabled
+00:00:091 hw/mem/addrspace.cpp:463 N[VMEM]: BASE 0x7fba626d0000 RAM(32 MB) 0x7fba6e6d0000 VRAM64(8 MB) 0x7fba666d0000 ARAM(2 MB) 0x7fba826d0000
+00:00:112 ui/gui.cpp:3402 E[BOOT]: Cannot stat SDL2dcSoundTest.elf
+00:00:112 ui/gui.cpp:579 E[COMMON]: Flycast has stopped: Cannot stat SDL2dcSoundTest.elf

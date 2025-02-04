@@ -32,16 +32,18 @@
 /* Hidden "this" pointer for the audio functions */
 #define _THIS SDL_AudioDevice *_this
 
+// In SDL_dreamcastaudio.h
 typedef struct {
-    snd_stream_hnd_t stream_handle;  // Handle for the audio stream
-    int buffer;                      // Current buffer index (0 or 1)
-    int buffer_size;                 // Total size of the buffer
-    Uint8 *mixbuf[2];                // Two buffers for double buffering
-    int playing;                // Indicates if the audio is currently playing
-    int next_buffer;
-    SDL_bool buffer_ready;         // 
-    SDL_bool direct_buffer_access;   // Flag to enable direct buffer access
+    snd_stream_hnd_t stream_handle;
+    SDL_atomic_t active_buffer; 
+    SDL_atomic_t buffer_ready;
+    int buffer_size;
+    Uint8 *mixbuf[2];
+    int playing;
+    SDL_bool direct_buffer_access;
+    SDL_mutex *lock;
 } SDL_PrivateAudioData;
+
 
 #endif /* SDL_dreamcastaudio_h_ */
 /* vi: set ts=4 sw=4 expandtab: */

@@ -6,7 +6,7 @@
 #ifdef DREAMCAST
 #include "kos.h"
 #include "SDL_hints.h"
-#define WAV_PATH "/rd/StarWars60_adpcm.wav"
+#define WAV_PATH "/rd/gs-16b-2c-44100hz_adpcm.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else
@@ -145,19 +145,9 @@ int main(int argc, char *argv[]) {
         SDL_Quit(); 
         return 1;  
     } 
-        SDL_SetHint("SDL_AUDIO_ADPCM_STREAM_DC", "1");
-    SDL_Log("Loading %s\n", filename);
-/* Check if the file exists and is accessible before attempting to load */
-FILE *testfile = fopen(filename, "rb");
-if (!testfile) {
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "File not found or cannot be accessed: %s\n", filename);
-    quit(1);
-} else {
-    SDL_Log("File  found or can be accessed: %s\n", filename);
-    fclose(testfile); // File is accessible
-}
 
-    SDL_Log("SDL_LoadWAV %s\n", filename);
+    SDL_SetHint("SDL_AUDIO_ADPCM_STREAM_DC", "1");
+    SDL_Log("Loading %s\n", filename);
     /* Load the wave file into memory */
     if (SDL_LoadWAV(filename, &wave.spec, &wave.sound, &wave.soundlen) == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());

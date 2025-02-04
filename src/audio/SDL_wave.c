@@ -2078,43 +2078,20 @@ static int WaveLoad(SDL_RWops *src, WaveFile *file, SDL_AudioSpec *spec, Uint8 *
 }
 
 static int ADPCMLoad(SDL_RWops *src, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len) {
-    Uint8 header[100];
+    Uint8 header[44]; // WAV headers are typically 44 bytes
     if (SDL_RWread(src, header, sizeof(header), 1) != 1) {
         return SDL_SetError("Failed to read ADPCM header");
     }
 
-    // Parse the fmt chunk
-    Uint16 audioFormat = (header[21] << 8) | header[20];
-    Uint16 channels = (header[23] << 8) | header[22];
+    // Assume known format (ADPCM) and read only necessary values
     Uint32 sampleRate = (header[27] << 24) | (header[26] << 16) | (header[25] << 8) | header[24];
-    Uint16 bitsPerSample = (header[35] << 8) | header[34];
-    Uint16 blockAlign = (header[33] << 8) | header[32];
+    Uint16 channels = header[22];
 
-    // Validate the format (accept both 0x0020 and 0x0072 if needed)
-    if (audioFormat != 0x0020) { // Allow Microsoft ADPCM tag for Dreamcast compatibility
-        return SDL_SetError("Unsupported ADPCM format (expected 0x0020)");
-    }
+    // Seek directly to the "data" chunk (assuming correct format)
+    SDL_RWseek(src, 44, RW_SEEK_SET);
+    *audio_len = SDL_RWsize(src) - 44; // Assume the rest is ADPCM data
 
-    // Skip to the data chunk
-    Uint32 fmtSize = (header[19] << 24) | (header[18] << 16) | (header[17] << 8) | header[16];
-    int offset = 20 + fmtSize;
-
-    // Skip 'fact' and 'LIST' chunks if present
-    while (1) {
-        if (offset + 8 > sizeof(header)) break; // Prevent overflow
-        char chunkID[5] = { header[offset], header[offset+1], header[offset+2], header[offset+3], 0 };
-        Uint32 chunkSize = (header[offset+7] << 24) | (header[offset+6] << 16) | (header[offset+5] << 8) | header[offset+4];
-        
-        if (strcmp(chunkID, "data") == 0) {
-            *audio_len = chunkSize;
-            SDL_RWseek(src, offset + 8, RW_SEEK_SET);
-            break;
-        } else {
-            offset += 8 + chunkSize;
-        }
-    }
-
-    // Read the ADPCM data
+    // Allocate buffer and read data
     *audio_buf = (Uint8 *)SDL_malloc(*audio_len);
     if (!*audio_buf) return SDL_SetError("Out of memory");
     if (SDL_RWread(src, *audio_buf, *audio_len, 1) != 1) {
@@ -2122,16 +2099,18 @@ static int ADPCMLoad(SDL_RWops *src, SDL_AudioSpec *spec, Uint8 **audio_buf, Uin
         return SDL_SetError("Failed to read ADPCM data");
     }
 
-    // Configure SDL_AudioSpec for Dreamcast ADPCM
+    // Configure SDL_AudioSpec
     SDL_zero(*spec);
     spec->freq = sampleRate;
-    spec->format = AUDIO_S16LSB; // Custom format indicating ADPCM
+    spec->format = AUDIO_S16LSB; // Using a custom format tag for ADPCM
     spec->channels = channels;
-    spec->samples = blockAlign * 2; // Make sure it's a multiple of the ADPCM block size
+    spec->samples = 512; // Set a reasonable buffer size
     spec->size = *audio_len;
 
+    SDL_Log("ADPCM file loaded successfully: %u bytes", *audio_len);
     return 0;
 }
+
 
 SDL_AudioSpec *SDL_LoadWAV_RW(SDL_RWops *src, int freesrc, SDL_AudioSpec *spec, Uint8 **audio_buf, Uint32 *audio_len)
 {

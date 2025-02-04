@@ -105,9 +105,9 @@ static void DREAMCASTAUD_PlayDevice(_THIS)
     /* Wait until the previous buffer has been consumed */
     DREAMCASTAUD_WaitDevice(_this);
 
-    SDL_LockMutex(hidden->lock);
+    // SDL_LockMutex(hidden->lock);
     SDL_AtomicSet(&hidden->buffer_ready, 1);
-    SDL_UnlockMutex(hidden->lock);
+    // SDL_UnlockMutex(hidden->lock);
 
     /* Nudge the stream so that the callback is invoked */
     snd_stream_poll(hidden->stream_handle);

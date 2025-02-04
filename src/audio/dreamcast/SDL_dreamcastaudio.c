@@ -205,13 +205,6 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
 
     _this->spec.userdata = (void *)(intptr_t)hidden->stream_handle;
 
-    /* Create a mutex for protecting double-buffer state */
-    hidden->lock = SDL_CreateMutex();
-    if (!hidden->lock) {
-        SDL_free(hidden);
-        return SDL_SetError("Mutex creation failed");
-    }
-    
     /* Initialize state: set active buffer to 0 and buffer_ready to 0 */
     SDL_AtomicSet(&hidden->active_buffer, 0);
     SDL_AtomicSet(&hidden->buffer_ready, 0);
@@ -237,11 +230,6 @@ static void DREAMCASTAUD_CloseDevice(_THIS)
             snd_stream_stop(hidden->stream_handle);
             snd_stream_destroy(hidden->stream_handle);
             hidden->stream_handle = SND_STREAM_INVALID;
-        }
-
-        if (hidden->lock) {
-            SDL_DestroyMutex(hidden->lock);
-            hidden->lock = NULL;
         }
 
         if (hidden->mixbuf[0]) {

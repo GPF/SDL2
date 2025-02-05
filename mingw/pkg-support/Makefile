@@ -23,8 +23,12 @@ install-package:
 	    sed "s|^prefix=.*|prefix=$(prefix)|" <$(arch)/bin/sdl2-config >$(prefix)/bin/sdl2-config; \
 	    chmod 755 $(prefix)/bin/sdl2-config; \
 	    sed "s|^libdir=.*|libdir=\'$(prefix)/lib\'|" <$(arch)/lib/libSDL2.la >$(prefix)/lib/libSDL2.la; \
-	    sed "s|^libdir=.*|libdir=\'$(prefix)/lib\'|" <$(arch)/lib/libSDL2main.la >$(prefix)/lib/libSDL2main.la; \
-	    sed "s|^prefix=.*|prefix=$(prefix)|" <$(arch)/lib/pkgconfig/sdl2.pc >$(prefix)/lib/pkgconfig/sdl2.pc; \
+	    sed -e "s|^set[(]bindir \".*|set(bindir \"$(prefix)/bin\")|" \
+	    	-e "s|^set[(]includedir \".*|set(includedir \"$(prefix)/include\")|" \
+	    	-e "s|^set[(]libdir \".*|set(libdir \"$(prefix)/lib\")|" <$(arch)/lib/cmake/SDL2/sdl2-config.cmake >$(prefix)/lib/cmake/SDL2/sdl2-config.cmake; \
+	    sed -e "s|^prefix=.*|prefix=$(prefix)|" \
+	    	-e "s|^includedir=.*|includedir=$(prefix)/include|" \
+	    	-e "s|^libdir=.*|libdir=$(prefix)/lib|" <$(arch)/lib/pkgconfig/sdl2.pc >$(prefix)/lib/pkgconfig/sdl2.pc; \
 	else \
 	    echo "*** ERROR: $(arch) or $(prefix) does not exist!"; \
 	    exit 1; \

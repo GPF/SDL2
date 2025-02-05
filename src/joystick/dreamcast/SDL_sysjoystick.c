@@ -171,44 +171,77 @@ static int DREAMCAST_JoystickOpen(SDL_Joystick *joystick, int device_index)
     return 0;
 }
 
-static int DREAMCAST_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble) {
+// Convert a rumble value (0–32767) to a 3‑bit intensity (0–7)
+// Using rounding so that 32767 maps to 7.
+static inline uint32_t convert_rumble_intensity(Uint16 value) {
+    return (uint32_t)(((unsigned long)value * 7 + (32767 / 2)) / 32767);
+}
+
+static int DREAMCAST_JoystickRumble(SDL_Joystick *joystick,
+                                      Uint16 low_frequency_rumble,
+                                      Uint16 high_frequency_rumble)
+{
     maple_device_t *dev = SYS_Joystick_addr[joystick->instance_id];
     maple_device_t *rumble_dev = SYS_Rumble_device[joystick->instance_id];
 
-    // Check if the device supports rumble
+    SDL_Log("DREAMCAST_JoystickRumble: instance_id=%d, low_frequency_rumble=%d, high_frequency_rumble=%d\n",
+            joystick->instance_id, low_frequency_rumble, high_frequency_rumble);
+
+    /* Check if the device supports rumble */
     if (!dev || !rumble_dev) {
-        SDL_Log("Device doesn't support rumble or isn't open\n");
-        return SDL_Unsupported();  // Device doesn't support rumble or isn't open
+        // SDL_Log("Device or rumble device not found or not open. instance_id=%d\n", joystick->instance_id);
+        return SDL_Unsupported();
     }
 
     SDL_Log("Sending rumble command to device %d\n", joystick->instance_id);
 
     purupuru_effect_t effect;
-    memset(&effect, 0, sizeof(effect));
+    SDL_memset(&effect, 0, sizeof(effect));
 
-    // Set up the rumble effect
-    effect.duration = 255;  // Full duration, adjust as needed
-    effect.effect2 = PURUPURU_EFFECT2_LINTENSITY((low_frequency_rumble >> 13) & 0x7) | 
-                     PURUPURU_EFFECT2_UINTENSITY((high_frequency_rumble >> 13) & 0x7);  // Intensity control
-    effect.effect1 = PURUPURU_EFFECT1_INTENSITY((low_frequency_rumble >> 13) & 0x7);  // Intensity
-    effect.special = PURUPURU_SPECIAL_MOTOR1;  // Use motor 1 (adjust if needed)
+    /* Set up the rumble effect:
+     * - We'll use a fixed duration (e.g., 255).
+     * - Convert the low- and high-frequency values to 3-bit intensities (0–7).
+     * - Combine these using the appropriate macros.
+     *
+     * Note: The macros PURUPURU_EFFECT1_INTENSITY, PURUPURU_EFFECT2_LINTENSITY, 
+     * PURUPURU_EFFECT2_UINTENSITY, and PURUPURU_SPECIAL_MOTOR1 are defined in dc/maple/purupuru.h.
+     */
+    effect.duration = 255;  // Adjust duration as needed
 
-    // Send the rumble command
-    int result = purupuru_rumble(rumble_dev, &effect);  // Send the rumble effect
+    uint32_t low_intensity = convert_rumble_intensity(low_frequency_rumble);
+    uint32_t high_intensity = convert_rumble_intensity(high_frequency_rumble);
 
+    effect.effect1 = PURUPURU_EFFECT1_INTENSITY(low_intensity);
+    effect.effect2 = PURUPURU_EFFECT2_LINTENSITY(low_intensity) | PURUPURU_EFFECT2_UINTENSITY(high_intensity);
+    effect.special = PURUPURU_SPECIAL_MOTOR1;  // Use motor 1
+
+    int result = purupuru_rumble(rumble_dev, &effect);
     if (result == MAPLE_EOK) {
-        printf("Rumble command sent successfully.\n");
-        return 0;  // Success
+        SDL_Log("Rumble command sent successfully to device %d.\n", joystick->instance_id);
+        return 0;
     } else {
-        SDL_Log("Failed to send rumble command. Error: %d\n", result);
+        SDL_Log("Failed to send rumble command to device %d. Error: %d\n", joystick->instance_id, result);
         return SDL_SetError("Failed to send rumble command");
     }
 }
 
-static int DREAMCAST_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+
+
+static int DREAMCAST_JoystickRumbleTriggers(SDL_Joystick *joystick,
+                                              Uint16 left_rumble,
+                                              Uint16 right_rumble)
 {
-    return SDL_Unsupported();
+    /* Combine the two rumble values into one.
+       Since the hardware only supports one rumble channel,
+       we can simply average the two values. */
+    Uint16 combined_rumble = (left_rumble + right_rumble) / 2;
+SDL_Log("DREAMCAST_JoystickRumbleTriggers: left_rumble=%d, right_rumble=%d, combined_rumble=%d\n",
+            left_rumble, right_rumble, combined_rumble);
+    /* Forward the combined value to the main rumble function */
+    return DREAMCAST_JoystickRumble(joystick, combined_rumble, combined_rumble);
 }
+
+
 
 static Uint32 DREAMCAST_JoystickGetCapabilities(SDL_Joystick *joystick)
 {
@@ -230,20 +263,31 @@ static int DREAMCAST_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool 
     return SDL_Unsupported();
 }
 
-static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick)
-{
+int normalize_trigger(int value) {
+    // Ensure the value is within the expected range (0-255)
+    if (value < 0) value = 0;
+    if (value > 255) value = 255;
+
+    // Scale the value to the SDL2 range (0-32767) with proper rounding
+    return (32767 - (value *256));
+}
+
+static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick) {
     maple_device_t *dev;
-    cont_state_t *state, *prev_state;
+    cont_state_t *state;
     int buttons, i, changed, hat;
 
     dev = SYS_Joystick_addr[joystick->instance_id];
 
+    // Get current state from the device
     if (!(state = (cont_state_t *)maple_dev_status(dev))) {
         return;
     }
 
+    // SDL_Log("Raw trigger values: rtrig=%d, ltrig=%d\n", state->rtrig, state->ltrig);
+
     buttons = state->buttons;
-    prev_state = &joystick->hwdata->prev_state;
+    cont_state_t *prev_state = &joystick->hwdata->prev_state;
     changed = buttons ^ prev_state->buttons;
 
     // Process D-Pad
@@ -272,54 +316,51 @@ static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick)
         }
     }
 
-    // Scale Joystick Axes
-    #define DC_JOYSTICK_MAX 128
-    #define SDL_JOYSTICK_MAX 32767
-    int scale_axis(int value) {
-        return (value * SDL_JOYSTICK_MAX) / DC_JOYSTICK_MAX;
-    }
-
+    // Scale Joystick Axes for main sticks
     if (state->joyx != prev_state->joyx)
-        SDL_PrivateJoystickAxis(joystick, 0, scale_axis(state->joyx));
+        SDL_PrivateJoystickAxis(joystick, 0, state->joyx * 256);
     if (state->joyy != prev_state->joyy)
-        SDL_PrivateJoystickAxis(joystick, 1, scale_axis(state->joyy));
+        SDL_PrivateJoystickAxis(joystick, 1, state->joyy * 256);
     if (state->joy2x != prev_state->joy2x)
-        SDL_PrivateJoystickAxis(joystick, 4, scale_axis(state->joy2x));
+        SDL_PrivateJoystickAxis(joystick, 4, state->joy2x * 256);
     if (state->joy2y != prev_state->joy2y)
-        SDL_PrivateJoystickAxis(joystick, 5, scale_axis(state->joy2y));
+        SDL_PrivateJoystickAxis(joystick, 5, state->joy2y * 256);
 
-    // Debugging: Print raw trigger values (before normalization)
-    // printf("Raw rtrig: %d, ltrig: %d\n", state->rtrig, state->ltrig);  // Debugging output
-
-#define DC_TRIGGER_MIN 0
-#define DC_TRIGGER_MAX 255
-#define SDL_TRIGGER_MAX 32767
-
-int normalize_trigger(int value) {
-    int normalized = SDL_TRIGGER_MAX;
-    return (value == DC_TRIGGER_MAX) ? DC_TRIGGER_MIN : normalized;  // Ensure we never go negative
-}
-
+    // Process triggers as axes
     int rtrig = normalize_trigger(state->rtrig);
     int ltrig = normalize_trigger(state->ltrig);
+    int prev_rtrig = normalize_trigger(prev_state->rtrig);
+    int prev_ltrig = normalize_trigger(prev_state->ltrig);
 
-    // Debugging: Print normalized trigger values
-    // printf("Normalized rtrig: %d, ltrig: %d\n", rtrig, ltrig);  // Debugging output
+    if (rtrig != prev_rtrig)
+        SDL_PrivateJoystickAxis(joystick, 2, rtrig);
+    if (ltrig != prev_ltrig)
+        SDL_PrivateJoystickAxis(joystick, 3, ltrig);
 
-    // If the trigger state is different, send the updated axis value
-    if (rtrig != prev_state->rtrig) {
-        // printf("Updating right trigger: %d\n", rtrig);  // Debugging output
-        SDL_PrivateJoystickAxis(joystick, 2, rtrig);  // Right trigger mapped as axis 2
-    }
-    if (ltrig != prev_state->ltrig) {
-        // printf("Updating left trigger: %d\n", ltrig);  // Debugging output
-        SDL_PrivateJoystickAxis(joystick, 3, ltrig);  // Left trigger mapped as axis 3
-    }
+    // SDL_Log("Normalized trigger values: rtrig=%d, ltrig=%d\n", rtrig, ltrig);
 
-    // Save the current state to compare on the next frame
-    joystick->hwdata->prev_state = *state;
+    // Treat triggers as buttons:
+if (rtrig >= (32000) && prev_rtrig < (32000)) {
+    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_PRESSED);
+    SDL_Log("Right trigger pressed\n");
+} else if (rtrig < (32000) && prev_rtrig >= (32000)) {
+    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_RELEASED);
+    SDL_Log("Right trigger released\n");
 }
 
+if (ltrig >= (32000) && prev_ltrig < (32000)) {
+    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_PRESSED);
+    SDL_Log("Left trigger pressed\n");
+} else if (ltrig < (32000) && prev_ltrig >= (32000)) {
+    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_RELEASED);
+    SDL_Log("Left trigger released\n");
+}
+
+    // Save the raw trigger state for the next frame
+    prev_state->rtrig = state->rtrig;
+    prev_state->ltrig = state->ltrig;
+    joystick->hwdata->prev_state = *state;
+}
 
 static void DREAMCAST_JoystickClose(SDL_Joystick *joystick)
 {

@@ -217,7 +217,7 @@ static int DREAMCAST_JoystickRumble(SDL_Joystick *joystick,
 
     int result = purupuru_rumble(rumble_dev, &effect);
     if (result == MAPLE_EOK) {
-        SDL_Log("Rumble command sent successfully to device %d.\n", joystick->instance_id);
+        // SDL_Log("Rumble command sent successfully to device %d.\n", joystick->instance_id);
         return 0;
     } else {
         SDL_Log("Failed to send rumble command to device %d. Error: %d\n", joystick->instance_id, result);
@@ -235,8 +235,8 @@ static int DREAMCAST_JoystickRumbleTriggers(SDL_Joystick *joystick,
        Since the hardware only supports one rumble channel,
        we can simply average the two values. */
     Uint16 combined_rumble = (left_rumble + right_rumble) / 2;
-SDL_Log("DREAMCAST_JoystickRumbleTriggers: left_rumble=%d, right_rumble=%d, combined_rumble=%d\n",
-            left_rumble, right_rumble, combined_rumble);
+// SDL_Log("DREAMCAST_JoystickRumbleTriggers: left_rumble=%d, right_rumble=%d, combined_rumble=%d\n",
+//             left_rumble, right_rumble, combined_rumble);
     /* Forward the combined value to the main rumble function */
     return DREAMCAST_JoystickRumble(joystick, combined_rumble, combined_rumble);
 }
@@ -342,18 +342,18 @@ static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick) {
     // Treat triggers as buttons:
 if (rtrig >= (32000) && prev_rtrig < (32000)) {
     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_PRESSED);
-    SDL_Log("Right trigger pressed\n");
+    // SDL_Log("Right trigger pressed\n");
 } else if (rtrig < (32000) && prev_rtrig >= (32000)) {
     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_RELEASED);
-    SDL_Log("Right trigger released\n");
+    // SDL_Log("Right trigger released\n");
 }
 
 if (ltrig >= (32000) && prev_ltrig < (32000)) {
     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_PRESSED);
-    SDL_Log("Left trigger pressed\n");
+    // SDL_Log("Left trigger pressed\n");
 } else if (ltrig < (32000) && prev_ltrig >= (32000)) {
     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_RELEASED);
-    SDL_Log("Left trigger released\n");
+    // SDL_Log("Left trigger released\n");
 }
 
     // Save the raw trigger state for the next frame

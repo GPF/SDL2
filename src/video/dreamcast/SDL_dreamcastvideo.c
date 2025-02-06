@@ -346,7 +346,7 @@ int DREAMCAST_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *
     // Map SDL pixel format to Dreamcast pixel mode
     switch (mode->format) {
         case SDL_PIXELFORMAT_ARGB1555:
-            pixel_mode = PM_RGB0888;
+            pixel_mode = PM_RGB555;
             break;
         case SDL_PIXELFORMAT_RGB565:
             pixel_mode = PM_RGB565;

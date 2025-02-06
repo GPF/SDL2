@@ -259,18 +259,18 @@ SDL_GLContext DREAMCAST_GL_CreateContext(_THIS, SDL_Window *window) {
 
 int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
-    
+    glKosInit();
     // Validate the context
-    // if (!glcontext) {
-    //     SDL_SetError("Invalid OpenGL context");
-    //     return -1;
-    // }
+    if (!glcontext) {
+        SDL_SetError("Invalid OpenGL context");
+        return -1;
+    }
     
     // Check if the window is valid
-    // if (!window) {
-    //     SDL_SetError("Invalid window");
-    //     return -1;
-    // }
+    if (!window) {
+        SDL_SetError("Invalid window");
+        return -1;
+    }
     
     // // Set up the GLdcConfig structure
     // GLdcConfig config;
@@ -279,7 +279,7 @@ int DREAMCAST_GL_MakeCurrent(_THIS, SDL_Window *window, SDL_GLContext context) {
     // // Configure the GLdcConfig with values from your context
     // config.autosort_enabled = GL_FALSE; // or GL_TRUE based on your needs
     // config.fsaa_enabled = GL_FALSE; // or GL_TRUE if you want anti-aliasing
-    // config.internal_palette_format = GL_RGB565_KOS; // Adjust if needed
+    // config.internal_palette_format = GL_RGBA4; // Adjust if needed
     // config.initial_op_capacity = 1024; // Example values
     // config.initial_tr_capacity = 1024;
     // config.initial_pt_capacity = 1024;

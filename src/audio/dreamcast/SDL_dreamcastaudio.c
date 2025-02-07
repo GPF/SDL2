@@ -56,7 +56,7 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
     SDL_PrivateAudioData *hidden = (SDL_PrivateAudioData *)device->hidden;
     const int buffer_size = hidden->buffer_size;
     *done = 0;
-
+    
     if (SDL_AtomicGet(&hidden->buffer_ready)) {
         /* Get the next buffer index */
         const int current_active = SDL_AtomicGet(&hidden->active_buffer);
@@ -64,15 +64,14 @@ static void *stream_callback(snd_stream_hnd_t hnd, int req, int *done) {
 
         *done = SDL_min(req, buffer_size);
         
-        /* Update active buffer and clear ready flag */
         SDL_AtomicSet(&hidden->active_buffer, next_buf);
         SDL_AtomicSet(&hidden->buffer_ready, 0);
-        
-        // SDL_Log("Callback using buffer %d (%d bytes)", next_buf, *done);
+
+        // SDL_Log("Switching to buffer %d (%d bytes)", next_buf, *done);
         return hidden->mixbuf[next_buf];
     }
 
-    // SDL_Log("Callback fallback - no data");
+    SDL_Log("Stream callback: no data available");
     return hidden->mixbuf[SDL_AtomicGet(&hidden->active_buffer)];
 }
 /*
@@ -142,6 +141,9 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     SDL_zerop(hidden);
     _this->hidden = (struct SDL_PrivateAudioData *)hidden;
 
+    /* Ensure that the shutdown flag is clear for the new session */
+    SDL_AtomicSet(&_this->shutdown, 0);
+    /* Initialize the sound stream system */
     if (snd_stream_init() != 0) {
         SDL_free(hidden);
         return SDL_SetError("Failed to initialize sound stream system");
@@ -163,7 +165,12 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     }
 
     SDL_CalculateAudioSpec(&_this->spec);
-    hidden->buffer_size = _this->spec.size; 
+    if (_this->spec.channels == 1) {
+        hidden->buffer_size = _this->spec.samples * _this->spec.channels * 2 * sizeof(int16_t);
+    } else {
+        hidden->buffer_size = _this->spec.samples * _this->spec.channels * sizeof(int16_t);
+    }
+    SDL_Log("Buffer size: %d", hidden->buffer_size);
 
     hidden->stream_handle = snd_stream_alloc(NULL, hidden->buffer_size);
     if (hidden->stream_handle == SND_STREAM_INVALID) {
@@ -195,16 +202,20 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
         fflush(stdout);
         snd_stream_start_adpcm(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
     } else if (_this->spec.format == AUDIO_S16LSB) {
+        SDL_Log("16-bit PCM audio format enabled\n");
         snd_stream_start(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
     } else if (_this->spec.format == AUDIO_S8) {
+        SDL_Log("8-bit PCM audio format enabled\n");
         snd_stream_start_pcm8(hidden->stream_handle, frequency, (channels == 2) ? 1 : 0);
     } else {
         SDL_SetError("Unsupported audio format: %d", _this->spec.format);
         return -1;
     }
 
-    _this->spec.userdata = (void *)(intptr_t)hidden->stream_handle;
-
+    _this->spec.userdata = (snd_stream_hnd_t*)hidden->stream_handle;
+    
+    // SDL_Log("stream handle: %d", hidden->stream_handle);
+    // SDL_Log("_this->spec.userdata: %d", _this->spec.userdata);
     /* Initialize state: set active buffer to 0 and buffer_ready to 0 */
     SDL_AtomicSet(&hidden->active_buffer, 0);
     SDL_AtomicSet(&hidden->buffer_ready, 0);
@@ -213,7 +224,6 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     audioDevice = _this;
     return 0;
 }
-
 /*
  * Close the audio device.
  */
@@ -223,15 +233,22 @@ static void DREAMCASTAUD_CloseDevice(_THIS)
 
     SDL_Log("Closing audio device\n");
 
+    /* Signal the SDL mixing thread to exit. */
+    SDL_AtomicSet(&_this->shutdown, 1);
+
+    // Disable the audio device
     SDL_AtomicSet(&_this->enabled, 0);
 
     if (hidden) {
+        // Stop and destroy the sound stream if it's valid
         if (hidden->stream_handle != SND_STREAM_INVALID) {
+            SDL_Log("Stopping and destroying sound stream\n");
             snd_stream_stop(hidden->stream_handle);
             snd_stream_destroy(hidden->stream_handle);
-            hidden->stream_handle = SND_STREAM_INVALID;
+            hidden->stream_handle = SND_STREAM_INVALID;  // Ensure the handle is invalidated
         }
 
+        // Free allocated buffers
         if (hidden->mixbuf[0]) {
             SDL_free(hidden->mixbuf[0]);
             hidden->mixbuf[0] = NULL;
@@ -241,17 +258,20 @@ static void DREAMCASTAUD_CloseDevice(_THIS)
             hidden->mixbuf[1] = NULL;
         }
 
+        // Free the hidden structure
         SDL_free(hidden);
-        _this->hidden = NULL;
+        _this->hidden = NULL;  // Nullify hidden to avoid dangling pointer
     }
 
+    // Reset the capture and audio device references
     if (_this->iscapture) {
         captureDevice = NULL;
     } else {
         audioDevice = NULL;
     }
-
-    snd_stream_shutdown();
+    SDL_Log("Audio device closed\n");
+    // Shutdown the sound system
+    snd_stream_shutdown();  // This should be called last to finalize the system shutdown
 }
 
 /*
@@ -265,6 +285,7 @@ static SDL_bool DREAMCASTAUD_Init(SDL_AudioDriverImpl *impl)
     impl->WaitDevice  = DREAMCASTAUD_WaitDevice;
     impl->GetDeviceBuf = DREAMCASTAUD_GetDeviceBuf;
     impl->ThreadInit  = DREAMCASTAUD_ThreadInit;
+    // impl->ThreadDeinit = DREAMCASTAUD_ThreadDeinit;
     impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
     return SDL_TRUE;
 }

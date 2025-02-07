@@ -221,6 +221,9 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     SDL_AtomicSet(&hidden->buffer_ready, 0);
     SDL_Log("Dreamcast audio driver initialized\n");
     
+    /* Mark the device as enabled */
+    SDL_AtomicSet(&_this->enabled, 1);
+
     audioDevice = _this;
     return 0;
 }
@@ -270,6 +273,7 @@ static void DREAMCASTAUD_CloseDevice(_THIS)
         audioDevice = NULL;
     }
     SDL_Log("Audio device closed\n");
+
     // Shutdown the sound system
     snd_stream_shutdown();  // This should be called last to finalize the system shutdown
 }

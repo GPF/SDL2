@@ -6,7 +6,7 @@
 #ifdef DREAMCAST
 #include "kos.h"
 #include "SDL_hints.h"
-#define WAV_PATH "/rd/gs-16b-2c-44100hz_adpcm.wav"
+#define WAV_PATH "/rd/sample.wav"
 extern uint8 romdisk[];
 KOS_INIT_ROMDISK(romdisk);
 #else
@@ -51,28 +51,25 @@ static void open_audio(void) {
         quit(2);
     }
 
- // Double-check if it's really unpaused
+    // Double-check if it's really unpaused
     SDL_PauseAudioDevice(device, 0);
     if (SDL_GetAudioDeviceStatus(device) != SDL_AUDIO_PLAYING) {
         SDL_Log("Audio device did not start playing! %s", SDL_GetError());
     }
-    printf("SDL_OpenAudioDevice successful");
-
+    SDL_Log("SDL_OpenAudioDevice successful");
 }
 
-#ifndef __EMSCRIPTEN__
 static void reopen_audio(void) {
     close_audio();
     open_audio();
 }
-#endif
-// void SDL_DC_SetSoundBuffer(Uint8 **buffer_ptr, int *available_size);
+
 void SDLCALL fillerup(void *userdata, Uint8 *stream, int len) {
     // Fill the stream directly with ADPCM data
-    // SDL_Log("  soundpos: %d", wave.soundpos);
+    SDL_Log("  soundpos: %d", wave.soundpos);
     Uint8 *waveptr = wave.sound + wave.soundpos;
     int waveleft = wave.soundlen - wave.soundpos;
-    
+
     while (waveleft > 0 && len > 0) {
         // Determine the size of the chunk to copy (min of remaining data and stream space)
         int chunk = (waveleft < len) ? waveleft : len;
@@ -90,16 +87,13 @@ void SDLCALL fillerup(void *userdata, Uint8 *stream, int len) {
     // Update the position in the buffer for the next callback
     wave.soundpos = waveptr - wave.sound;
 
-    // If we reach the end of the sound data and want to stop playback or loop:
+    // If we reach the end of the sound data, stop playback and reopen the audio device
     if (wave.soundpos >= wave.soundlen) {
-        // Option 1: Stop playback when the sound finishes
-        // SDL_PauseAudio(1); // Uncomment if you want to stop audio when done
-
-        // Option 2: Loop the audio by resetting the sound position
-        wave.soundpos = 0; // Uncomment if you want to loop the sound
+        SDL_Log("Sound finished playing, reopening audio device...");
+        wave.soundpos = 0; // Reset the sound position
+        reopen_audio();    // Reopen the audio device
     }
 }
-
 
 static int done = 0;
 
@@ -117,52 +111,47 @@ int main(int argc, char *argv[]) {
     SDL_Surface *image_surface;
     SDL_Texture *texture;
     SDL_Renderer *renderer;
+
     /* Enable standard application logging */
     SDL_LogSetPriority(SDL_LOG_CATEGORY_APPLICATION, SDL_LOG_PRIORITY_INFO);
-    // SDL_SetHint(SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC, "0");
 
     /* Load the SDL library */
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't initialize SDL: %s\n", SDL_GetError());
         return 1;
     }
-    printf("SDL_CreateWindow\n"); 
+
     // Create a window
     window = SDL_CreateWindow("SDL2 Displaying Image", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 640, 480, SDL_WINDOW_SHOWN);
     if (!window) {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_Quit();
-        return 1;  
-    } 
-     // Set SDL hint for the renderer
-    // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");
-    printf("SDL_CreateRenderer\n"); 
+        return 1;
+    }
+
     // Create a renderer
     renderer = SDL_CreateRenderer(window, -1, 0);
-    if (!renderer) { 
+    if (!renderer) {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
-        SDL_Quit(); 
-        return 1;  
-    } 
+        SDL_Quit();
+        return 1;
+    }
 
-    SDL_SetHint("SDL_AUDIO_ADPCM_STREAM_DC", "1");
     SDL_Log("Loading %s\n", filename);
     /* Load the wave file into memory */
     if (SDL_LoadWAV(filename, &wave.spec, &wave.sound, &wave.soundlen) == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't load %s: %s\n", filename, SDL_GetError());
         quit(1);
     }
-    // wave.spec.freq= 22050;
-    // wave.spec.format    = AUDIO_S16LSB;
-    // wave.spec.channels = 1;
-    wave.spec.samples = 512;
+
+    wave.spec.samples = 4096;
     wave.spec.callback = fillerup;
 
     /* Show the list of available drivers */
     SDL_Log("Available audio drivers:");
     for (int i = 0; i < SDL_GetNumAudioDrivers(); ++i) {
-        SDL_Log("%i: %s", i, SDL_GetAudioDriver(i)); 
+        SDL_Log("%i: %s", i, SDL_GetAudioDriver(i));
     }
 
     SDL_Log("Using audio driver: %s\n", SDL_GetCurrentAudioDriver());
@@ -170,7 +159,7 @@ int main(int argc, char *argv[]) {
     open_audio();
 
     SDL_FlushEvents(SDL_AUDIODEVICEADDED, SDL_AUDIODEVICEREMOVED);
-       
+
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(loop, 0, 1);
 #else

@@ -26,6 +26,7 @@
 #include "SDL_dreamcastframebuffer_c.h"
 #include "SDL_hints.h"
 #include "../../SDL_utils_c.h"
+#include "../../events/SDL_mouse_c.h"
 
 int sdl_dc_pvr_inited =0;
 #define DREAMCAST_SURFACE "_SDL_DreamcastSurface"
@@ -316,6 +317,11 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
     SDL_bool double_buffer_hint = SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE);
     SDL_bool vsync_hint = SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, SDL_TRUE);
+    int mouse_x, mouse_y;
+
+    // Get the SDL_Mouse structure
+    SDL_Mouse *mouse = SDL_GetMouse();
+
     surface = (SDL_Surface *)SDL_GetWindowData(window, DREAMCAST_SURFACE);
     if (!surface) {
         return SDL_SetError("Couldn't find framebuffer surface for window");
@@ -326,24 +332,36 @@ int SDL_DREAMCAST_UpdateWindowFramebuffer(_THIS, SDL_Window *window, const SDL_R
     h = surface->h;
     pitch = surface->pitch;
 
- // Retrieve mouse position and draw the cursor at the appropriate position
-    int mouse_x, mouse_y;
-    SDL_GetMouseState(&mouse_x, &mouse_y); // This could be mapped to controller input
 
-    // Define the cursor rectangle
-    SDL_Rect cursorRect = { mouse_x, mouse_y, 32, 32 }; // Adjust as necessary
+    // Check if the cursor is enabled
+    // Retrieve mouse position and draw the cursor at the appropriate position
 
-    // You can directly copy the cursor pixels to the framebuffer
-    if (SDL_GetWindowData(window, "cursor_initialized") != NULL) {
-        // cursor = (SDL_Cursor *)SDL_GetWindowData(window, "cursor_initialized");
-        
-        // You need to extract the pixel data from the cursor and blit it to the framebuffer
-        // This can be done using SDL_Surface and copying the cursor image to the framebuffer
-        SDL_Surface *cursor_surface = SDL_CreateRGBSurfaceWithFormatFrom(cursor_surface->pixels, 32, 32, 32, 32 * sizeof(Uint32), SDL_PIXELFORMAT_ARGB8888);
 
-        // Blit the cursor surface onto the main framebuffer at the correct location
-        SDL_BlitSurface(cursor_surface, NULL, surface, &cursorRect);
-        SDL_FreeSurface(cursor_surface);
+    // Check if the cursor is enabled
+    if (mouse->cursor_shown) {
+
+        SDL_GetMouseState(&mouse_x, &mouse_y); // This could be mapped to controller input        
+        // Define the cursor rectangle
+        SDL_Rect cursorRect = { mouse_x, mouse_y, 32, 32 }; // Adjust as necessary
+
+        // Render the custom cursor only if it is enabled
+        if (SDL_GetWindowData(window, "cursor_initialized") != NULL) {
+            // Create a surface for the cursor (assuming you have cursor pixel data)
+            SDL_Surface *cursor_surface = SDL_CreateRGBSurfaceWithFormatFrom(
+                cursor_surface->pixels,  // Replace with your cursor pixel data
+                32,                      // Width
+                32,                      // Height
+                32,                      // Depth (bits per pixel)
+                32 * sizeof(Uint32),     // Pitch (bytes per row)
+                SDL_PIXELFORMAT_ARGB8888 // Pixel format
+            );
+
+            if (cursor_surface) {
+                // Blit the cursor surface onto the main framebuffer at the correct location
+                SDL_BlitSurface(cursor_surface, NULL, surface, &cursorRect);
+                SDL_FreeSurface(cursor_surface);
+            }
+        }
     }
 
 

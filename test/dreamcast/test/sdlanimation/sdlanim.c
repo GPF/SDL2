@@ -3,8 +3,8 @@
 #include <kos.h>
 
 /* Size of the window */
-#define SCREEN_WIDTH  640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH  320
+#define SCREEN_HEIGHT 240
 /* Size of the grass texture picture */
 #define GRASS_SIZE    32
 
@@ -96,7 +96,7 @@ SDL_Log("Joystick GUID: %s", guid_str);
         return 1;
     }
     // Set SDL hint for the renderer
-            // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_TEXTURED_VIDEO");
+            // 
     // SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO"); // Set for DMA mode
     // SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "software");    
     renderer = SDL_CreateRenderer(window, -1,  SDL_RENDERER_PRESENTVSYNC);

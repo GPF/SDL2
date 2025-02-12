@@ -203,7 +203,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
     SDL_Surface *surface;
     int w, h;
     SDL_DisplayMode mode;
-    Uint32 surface_format = mode.format;
+    Uint32 surface_format = *format;
     int target_bpp;
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
     const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
@@ -223,7 +223,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         surface_format != SDL_PIXELFORMAT_ARGB1555 &&
         surface_format != SDL_PIXELFORMAT_RGB888 &&
         surface_format != SDL_PIXELFORMAT_ARGB8888) {
-        surface_format = SDL_PIXELFORMAT_RGB888;  // Default format if unsupported
+        surface_format = SDL_PIXELFORMAT_ARGB1555;  // Default format if unsupported
     }
 
     // Determine color depth (bit depth) based on video mode
@@ -237,9 +237,10 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         h = SDL_powerof2(h);         
     } else {
         target_bpp = SDL_BITSPERPIXEL(surface_format);  // Maintain the original depth if not textured mode
-        // if (target_bpp == 24) {
-        //     target_bpp = 32;
-        // }
+        // surface_format = SDL_PIXELFORMAT_RGB565;
+        if (target_bpp == 24) {
+            target_bpp = 32;
+        }
     }    
     surface->pitch = w * (target_bpp / 8);
 
@@ -258,7 +259,7 @@ int SDL_DREAMCAST_CreateWindowFramebuffer(_THIS, SDL_Window *window, Uint32 *for
         pvr_dma_init();
         sdl_dc_pvr_inited = 1;
         SDL_Log("Inited SDL_DC_DMA_VIDEO");   
-        sdl_dc_dblsize = (w * h * (SDL_BITSPERPIXEL(surface_format)));
+        sdl_dc_dblsize=(w*h*(target_bpp>>3));
         sdl_dc_dblfreed = calloc(128 + sdl_dc_dblsize, 1);
         sdl_dc_dblmem = (unsigned short *)(((((unsigned)sdl_dc_dblfreed) + 64) / 64) * 64);        
         surface->pixels = (void *)sdl_dc_dblmem;
@@ -383,10 +384,10 @@ if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") ==
     else if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0) {
         //   SDL_Log("Using dma video mode");    
         // // Ensure the data cache is flushed before DMA transfer
-        dcache_flush_range((uintptr_t)surface->pixels, h * pitch);
+        dcache_flush_range((uintptr_t)surface->pixels, sdl_dc_dblsize);
         while (!pvr_dma_ready());  // Wait for any prior DMA transfer to complete
         // Perform the DMA transfer from surface->pixels to vram_l
-        pvr_dma_transfer((void*)surface->pixels, (uintptr_t)vram_l, h * pitch, PVR_DMA_VRAM32, -1, NULL, NULL); 
+        pvr_dma_transfer((void*)surface->pixels, (uintptr_t)vram_l, sdl_dc_dblsize, PVR_DMA_VRAM32, -1, NULL, NULL); 
     }
     else{
         // SDL_Log("Using direct video mode");        

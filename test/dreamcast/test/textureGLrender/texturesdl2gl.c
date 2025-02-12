@@ -4,8 +4,8 @@
     #include <stdio.h>
 
     #define FPS 30
-    #define WINDOW_WIDTH 640
-    #define WINDOW_HEIGHT 480
+    #define WINDOW_WIDTH 320
+    #define WINDOW_HEIGHT 240
 
     const Uint32 waittime = 1000 / FPS;
 
@@ -22,29 +22,29 @@ SDL_Texture* LoadTexture(SDL_Renderer* renderer, const char* filename) {
         fprintf(stderr, "Unable to load %s: %s\n", filename, SDL_GetError());
         return NULL;
     }
-    tmpbuf = (Uint8 *)malloc(image->pitch);
-    if (!tmpbuf) {
-        fprintf(stderr, "Out of memory\n");
-        return NULL;
-    }
-    rowhi = (Uint8 *)image->pixels;
-    rowlo = rowhi + (image->h * image->pitch) - image->pitch;
-    for (int i = 0; i < image->h / 2; ++i) {
-        for (int j = 0; j < image->w; ++j) { 
-            tmpch = rowhi[j * 3];
-            rowhi[j * 3] = rowhi[j * 3 + 2];
-            rowhi[j * 3 + 2] = tmpch;
-            tmpch = rowlo[j * 3];
-            rowlo[j * 3] = rowlo[j * 3 + 2];
-            rowlo[j * 3 + 2] = tmpch;
-        }
-        memcpy(tmpbuf, rowhi, image->pitch);
-        memcpy(rowhi, rowlo, image->pitch);
-        memcpy(rowlo, tmpbuf, image->pitch);
-        rowhi += image->pitch;
-        rowlo -= image->pitch;
-    }
-    free(tmpbuf);
+    // tmpbuf = (Uint8 *)malloc(image->pitch);
+    // if (!tmpbuf) {
+    //     fprintf(stderr, "Out of memory\n");
+    //     return NULL;
+    // }
+    // rowhi = (Uint8 *)image->pixels;
+    // rowlo = rowhi + (image->h * image->pitch) - image->pitch;
+    // for (int i = 0; i < image->h / 2; ++i) {
+    //     for (int j = 0; j < image->w; ++j) { 
+    //         tmpch = rowhi[j * 3];
+    //         rowhi[j * 3] = rowhi[j * 3 + 2];
+    //         rowhi[j * 3 + 2] = tmpch;
+    //         tmpch = rowlo[j * 3];
+    //         rowlo[j * 3] = rowlo[j * 3 + 2];
+    //         rowlo[j * 3 + 2] = tmpch;
+    //     }
+    //     memcpy(tmpbuf, rowhi, image->pitch);
+    //     memcpy(rowhi, rowlo, image->pitch);
+    //     memcpy(rowlo, tmpbuf, image->pitch);
+    //     rowhi += image->pitch;
+    //     rowlo -= image->pitch;
+    // }
+    // free(tmpbuf);
 
     // Set transparent pixel as the pixel at (0,0) for BMPs with no alpha channel
     if (image->format->BitsPerPixel == 24 || image->format->BitsPerPixel == 32) {
@@ -104,8 +104,8 @@ void DrawScene(SDL_Renderer* renderer) {
 
         // Calculate the destination rectangle's position (centered)
         SDL_Rect dstRect = {
-            centerX - textureWidth / 2,  // Center the rectangle horizontally
-            centerY - textureHeight / 2,  // Center the rectangle vertically
+            0,  // Center the rectangle horizontally
+            0,  // Center the rectangle vertically
             textureWidth,                  // Texture width
             textureHeight                  // Texture height
         };

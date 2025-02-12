@@ -340,21 +340,21 @@ static void DREAMCAST_JoystickUpdate(SDL_Joystick *joystick) {
     // SDL_Log("Normalized trigger values: rtrig=%d, ltrig=%d\n", rtrig, ltrig);
 
     // Treat triggers as buttons:
-if (rtrig >= (32000) && prev_rtrig < (32000)) {
-    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_PRESSED);
-    // SDL_Log("Right trigger pressed\n");
-} else if (rtrig < (32000) && prev_rtrig >= (32000)) {
-    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_RELEASED);
-    // SDL_Log("Right trigger released\n");
-}
+// if (rtrig >= (32000) && prev_rtrig < (32000)) {
+//     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_PRESSED);
+//     // SDL_Log("Right trigger pressed\n");
+// } else if (rtrig < (32000) && prev_rtrig >= (32000)) {
+//     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, SDL_RELEASED);
+//     // SDL_Log("Right trigger released\n");
+// }
 
-if (ltrig >= (32000) && prev_ltrig < (32000)) {
-    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_PRESSED);
-    // SDL_Log("Left trigger pressed\n");
-} else if (ltrig < (32000) && prev_ltrig >= (32000)) {
-    SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_RELEASED);
-    // SDL_Log("Left trigger released\n");
-}
+// if (ltrig >= (32000) && prev_ltrig < (32000)) {
+//     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_PRESSED);
+//     // SDL_Log("Left trigger pressed\n");
+// } else if (ltrig < (32000) && prev_ltrig >= (32000)) {
+//     SDL_PrivateJoystickButton(joystick, SDL_CONTROLLER_BUTTON_LEFTSHOULDER, SDL_RELEASED);
+//     // SDL_Log("Left trigger released\n");
+// }
 
     // Save the raw trigger state for the next frame
     prev_state->rtrig = state->rtrig;

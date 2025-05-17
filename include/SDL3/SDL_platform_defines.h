@@ -473,4 +473,14 @@
 #define SDL_PLATFORM_3DS 1
 #endif
 
+#ifdef __DREAMCAST__
+
+/**
+ * A preprocessor macro that is only defined if compiling for Sega Dreamcast.
+ *
+ * \since This macro is available since SDL 3.2.0.
+ */
+#define SDL_PLATFORM_DREAMCAST 1
+#endif
+
 #endif /* SDL_platform_defines_h_ */

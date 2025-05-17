@@ -188,6 +188,31 @@ bool SDL_SYS_SetThreadPriority(SDL_ThreadPriority priority)
 #ifdef SDL_PLATFORM_RISCOS
     // FIXME: Setting thread priority does not seem to be supported
     return true;
+#elif defined(SDL_PLATFORM_DREAMCAST)
+    // KOS does not support POSIX scheduler policies,
+    // but it does support basic priority via pthread_setprio()
+
+    pthread_t thread = pthread_self();
+
+    switch (priority) {
+        case SDL_THREAD_PRIORITY_LOW:
+            pthread_setprio(thread, 100);
+            break;
+        case SDL_THREAD_PRIORITY_NORMAL:
+            pthread_setprio(thread, 10);
+            break;
+        case SDL_THREAD_PRIORITY_HIGH:
+            pthread_setprio(thread, 6);
+            break;
+        case SDL_THREAD_PRIORITY_TIME_CRITICAL:
+            pthread_setprio(thread, 2);
+            break;
+        default:
+            pthread_setprio(thread, 10); // Fallback to NORMAL
+            break;
+    }
+
+    return true;
 #else
     struct sched_param sched;
     int policy;

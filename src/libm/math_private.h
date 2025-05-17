@@ -27,7 +27,7 @@
 #define strong_alias(x, y)
 #define weak_alias(x, y)
 
-#if !defined(SDL_PLATFORM_HAIKU) && !defined(SDL_PLATFORM_PSP) && !defined(SDL_PLATFORM_3DS) && !defined(SDL_PLATFORM_PS2) /* already defined in a system header. */
+#if !defined(SDL_PLATFORM_HAIKU) && !defined(SDL_PLATFORM_PSP) && !defined(SDL_PLATFORM_3DS) && !defined(SDL_PLATFORM_PS2) && !defined(SDL_PLATFORM_DREAMCAST) /* already defined in a system header. */
 typedef unsigned int u_int32_t;
 #endif
 

@@ -140,7 +140,7 @@ endif()
 #  for the time being. This default will change to ON once this becomes
 #  commonly supported in browsers or the Emscripten team makes a single
 #  binary work everywhere.
-if (UNIX_OR_MAC_SYS AND NOT EMSCRIPTEN)
+if (UNIX_OR_MAC_SYS AND NOT EMSCRIPTEN OR DREAMCAST)
   set(SDL_PTHREADS_DEFAULT ON)
 else()
   set(SDL_PTHREADS_DEFAULT OFF)
@@ -218,8 +218,8 @@ if(EMSCRIPTEN)
   set(SDL_ASSEMBLY_DEFAULT OFF)
   set(SDL_SHARED_AVAILABLE OFF)
 endif()
-
-if(VITA OR PSP OR PS2 OR N3DS OR RISCOS)
+    
+if(VITA OR PSP OR PS2 OR N3DS OR RISCOS OR DREAMCAST)
   set(SDL_SHARED_AVAILABLE OFF)
 endif()
 
@@ -2931,6 +2931,30 @@ elseif(N3DS)
   set(HAVE_SDL_LOCALE TRUE)
 
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/io/n3ds/*.c")
+
+elseif(DREAMCAST)
+  set(SDL_THREAD_PTHREAD 1)
+  CheckPTHREAD()
+  set(HAVE_SDL_THREADS TRUE)
+  set(HAVE_PTHREAD_SETNAME_NP TRUE)
+
+  set(SDL_TIMER_UNIX 1)
+  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/timer/unix/*.c")
+  set(HAVE_SDL_TIMERS TRUE)  
+
+  if(SDL_VIDEO)
+    set(SDL_VIDEO_DRIVER_DREAMCAST 1)
+    sdl_glob_sources("${SDL3_SOURCE_DIR}/src/video/dreamcast/*.c") 
+    set(HAVE_SDL_VIDEO TRUE)
+    set(SDL_VIDEO_OPENGL FALSE)
+    # if(SDL_OPENGL)
+    #   set(SDL_VIDEO_OPENGL 1)
+    #   set(SDL_VIDEO_RENDER_OGL 1)
+    #   list(APPEND EXTRA_LIBS GL)
+    #   set(HAVE_OPENGL TRUE)
+    # endif()
+  endif()
+
 endif()
 
 sdl_sources(${SDL3_SOURCE_DIR}/src/dialog/SDL_dialog.c)

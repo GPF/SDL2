@@ -762,6 +762,8 @@ const char *SDL_GetPlatform(void)
     return "Nintendo 3DS";
 #elif defined(__managarm__)
     return "Managarm";
+#elif defined(SDL_PLATFORM_DREAMCAST)
+    return "Sega Dreamcast";
 #else
     return "Unknown (see SDL_platform.h)";
 #endif

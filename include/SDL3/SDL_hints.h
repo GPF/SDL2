@@ -4365,6 +4365,50 @@ extern "C" {
  */
 #define SDL_HINT_PEN_TOUCH_EVENTS "SDL_PEN_TOUCH_EVENTS"
 
+/**
+ * \brief Hint that controls direct access to the audio buffer.
+ *
+ * This hint enables the client to access the audio buffer directly through
+ * the SDL_DC_SetSoundBuffer function, which allows writing audio data directly 
+ * into the circular buffer. By using this hint, the client can bypass the need 
+ * for multiple memory copies (i.e., memcpy) that are typically required to 
+ * transfer audio data from the callback to the buffer, improving performance 
+ * and reducing latency in audio playback. 
+ *
+ * - "0": Disable direct buffer access (default).
+ * - "1": Enable direct buffer access.
+ */
+#define SDL_HINT_AUDIO_DIRECT_BUFFER_ACCESS_DC "SDL_AUDIO_DIRECT_BUFFER_ACCESS_DC"
+
+/**
+ * \brief Hint that enables ADPCM audio streaming on Dreamcast.
+ *
+ * This hint allows the SDL2 audio system to output pre-encoded 4-bit ADPCM 
+ * audio data directly to the Dreamcast's sound hardware. When enabled, 
+ * SDL will bypass standard PCM mixing and expect the client to provide 
+ * correctly encoded ADPCM data in the audio callback. This reduces CPU 
+ * usage and memory bandwidth by leveraging the Dreamcast's built-in 
+ * hardware decoding for ADPCM streams.
+ *
+ * Note: The client must supply ADPCM-encoded audio; SDL will not 
+ * perform any real-time encoding.
+ *
+ * - "0": Use standard PCM audio output (default).
+ * - "1": Enable ADPCM streaming (client must provide ADPCM data).
+ */
+#define SDL_HINT_AUDIO_ADPCM_STREAM_DC "SDL_AUDIO_ADPCM_STREAM_DC"
+
+/**
+ * \brief Hint that controls the video rendering mode for Dreamcast.
+ *
+ * This hint allows the selection of video rendering modes specific to Dreamcast, 
+ * enabling either direct framebuffer access (no DMA) or DMA-driven video rendering.
+ * This choice can impact the performance and method of updating the display.
+ *
+ * - "SDL_DC_DIRECT_VIDEO": Uses direct framebuffer access without DMA.
+ * - "SDL_DC_DMA_VIDEO": Uses DMA for transferring video data (default).
+ */
+#define SDL_HINT_DC_VIDEO_MODE "SDL_DC_VIDEO_MODE"
 
 /**
  * An enumeration of hint priorities.

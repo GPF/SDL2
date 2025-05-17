@@ -58,6 +58,8 @@ function(SDL_DetectCMakePlatform)
     set(sdl_cmake_platform QNX)
   elseif(CMAKE_SYSTEM_NAME MATCHES "BeOS.*")
     message(FATAL_ERROR "BeOS support has been removed as of SDL 2.0.2.")
+  elseif(CMAKE_SYSTEM_NAME MATCHES "Dreamcast")
+    set(sdl_cmake_platform DREAMCAST)
   endif()
 
   if(sdl_cmake_platform)

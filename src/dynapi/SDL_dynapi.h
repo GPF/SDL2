@@ -55,6 +55,8 @@
 #define SDL_DYNAMIC_API 0
 #elif defined(SDL_PLATFORM_PSP) && SDL_PLATFORM_PSP
 #define SDL_DYNAMIC_API 0
+#elif defined(SDL_PLATFORM_DREAMCAST) 
+#define SDL_DYNAMIC_API 0
 #elif defined(SDL_PLATFORM_RISCOS) // probably not useful on RISC OS, since dlopen() can't be used when using static linking.
 #define SDL_DYNAMIC_API 0
 #elif defined(__clang_analyzer__) || defined(__INTELLISENSE__) || defined(SDL_THREAD_SAFETY_ANALYSIS)

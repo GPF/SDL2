@@ -182,7 +182,7 @@ bool DREAMCAST_GL_SwapBuffers(SDL_VideoDevice *_this, SDL_Window * window){
 }
 
 bool DREAMCAST_GL_Initialize(SDL_VideoDevice *_this) {
-    printf("Initializing SDL2 GLdc...\n");
+    printf("Initializing SDL3 GLdc...\n");
     // glKosInit();
 
     // // Set default values or configure attributes as needed
@@ -234,7 +234,7 @@ SDL_GLContext DREAMCAST_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window *win
         return NULL;
     }
 
-    printf("Creating Dreamcast SDL2 OpenGL context...\n");
+    printf("Creating Dreamcast SDL3 OpenGL context...\n");
 
     context = (DreamcastGLContext *) SDL_calloc(1, sizeof(DreamcastGLContext));
     if (!context) {

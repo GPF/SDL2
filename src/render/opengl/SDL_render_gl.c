@@ -409,6 +409,33 @@ static bool GL_SupportsBlendMode(SDL_Renderer *renderer, SDL_BlendMode blendMode
 static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *format, GLenum *type)
 {
     switch (pixel_format) {
+#ifdef SDL_PLATFORM_DREAMCAST
+    case SDL_PIXELFORMAT_XRGB8888:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_BYTE;  // Dreamcast-specific handling for RGB888
+        break;
+    case SDL_PIXELFORMAT_RGB565:
+        *internalFormat = GL_RGB;
+        *format = GL_RGB;
+        *type = GL_UNSIGNED_SHORT_5_6_5;  // Dreamcast-specific handling for RGB565
+        break;
+    case SDL_PIXELFORMAT_ARGB1555:
+        *internalFormat = GL_RGBA;
+        *format = GL_BGRA; 
+        *type = GL_UNSIGNED_SHORT_1_5_5_5_REV; // Dreamcast-specific handling for ARGB1555
+        break;
+    case SDL_PIXELFORMAT_ARGB4444:
+        *internalFormat = GL_RGBA;
+        *format = GL_BGRA;
+        *type = GL_UNSIGNED_SHORT_4_4_4_4_REV;  // Dreamcast-specific handling for ARGB8888
+        break;        
+    case SDL_PIXELFORMAT_ARGB8888:
+        *internalFormat = GL_RGBA;
+        *format = GL_RGBA;
+        *type = GL_UNSIGNED_BYTE;  // Dreamcast-specific handling for ARGB8888
+        break;
+#else        
     case SDL_PIXELFORMAT_ARGB8888:
     case SDL_PIXELFORMAT_XRGB8888:
         *internalFormat = GL_RGBA8;
@@ -435,6 +462,7 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
         *format = GL_YCBCR_422_APPLE;
         *type = GL_UNSIGNED_SHORT_8_8_APPLE;
         break;
+#endif
 #endif
     default:
         return false;
@@ -525,10 +553,49 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
         data->texw = (GLfloat)texture_w;
         data->texh = (GLfloat)texture_h;
     } else {
+#ifdef SDL_PLATFORM_DREAMCAST
+       GLint maxSize;
+        int isPowerOfTwoWidth;
+        int isPowerOfTwoHeight;
+
+        renderdata->glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
+
+        isPowerOfTwoWidth = (texture->w & (texture->w - 1)) == 0;
+        isPowerOfTwoHeight = (texture->h & (texture->h - 1)) == 0;
+
+        if (!isPowerOfTwoWidth || !isPowerOfTwoHeight) {
+            int oldtexture_w = texture->w;
+            int oldtexture_h = texture->h;
+            int texturebpp;
+            int newStride;
+
+            // Adjust the width and height to the nearest power-of-two size
+            texture_w = (texture->w <= maxSize) ? SDL_powerof2(texture->w) : maxSize;
+            texture_h = (texture->h <= maxSize) ? SDL_powerof2(texture->h) : maxSize;
+
+            // Normalize texw and texh after adjustment to power-of-two
+            data->texw = (GLfloat)(texture->w) / texture_w;
+            data->texh = (GLfloat)(texture->h) / texture_h;
+
+            SDL_Log("Dreamcast: Adjusted texture size to power-of-two: oldw=%d, oldh=%d, w=%d, h=%d, maxSize=%d\n", oldtexture_w, oldtexture_h, texture_w, texture_h, maxSize);
+
+            texture->scaleMode = SDL_SCALEMODE_NEAREST;
+
+            texturebpp = SDL_BYTESPERPIXEL(texture->format);
+            newStride = texture_w * texturebpp;
+            renderdata->glPixelStorei(GL_UNPACK_ROW_LENGTH, (newStride / texturebpp));
+        } else {
+            texture_w = texture->w;
+            texture_h = texture->h;
+            data->texw = 1.0f;
+            data->texh = 1.0f;
+        }
+#else        
         texture_w = SDL_powerof2(texture->w);
         texture_h = SDL_powerof2(texture->h);
         data->texw = (GLfloat)(texture->w) / texture_w;
         data->texh = (GLfloat)texture->h / texture_h;
+#endif        
     }
     SDL_PropertiesID props = SDL_GetTextureProperties(texture);
     SDL_SetNumberProperty(props, SDL_PROP_TEXTURE_OPENGL_TEXTURE_NUMBER, data->texture);

@@ -24,6 +24,7 @@
 #include <SDL3/SDL.h>
 #include "../SDL_sysjoystick.h"
 #include "../SDL_joystick_c.h"
+#include "../SDL_gamepad_c.h"
 #include <dc/maple.h>
 #include <dc/maple/controller.h>
 #include <dc/maple/purupuru.h>
@@ -102,7 +103,13 @@ static bool DREAMCAST_JoystickInit(void) {
 
     //     }
     // }
-
+    // SDL_AddGamepadMapping(
+    //     "000085f15365676120447265616d6300,"
+    //     "Sega Dreamcast Controller,"
+    //     "a:b2,b:b1,x:b6,y:b5,start:b3,"
+    //     "dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,"
+    //     "righttrigger:a2~,lefttrigger:a3~,leftx:a0,lefty:a1,rightx:a4,righty:a5"
+    // );
     printf("Number of joysticks initialized: %d\n", numdevs);
     return numdevs > 0;
 }
@@ -147,7 +154,7 @@ static const char *DREAMCAST_JoystickGetDeviceName(int device_index)
     if (device_index >= MAX_JOYSTICKS || !SYS_Joystick_addr[device_index]) {
         return NULL;
     }
-    return "Dreamcast Controller";
+    return "Sega Dreamcast Controller";
 }
 
 
@@ -172,15 +179,7 @@ static void DREAMCAST_JoystickSetDevicePlayerIndex(int device_index, int player_
 
 static SDL_GUID DREAMCAST_JoystickGetDeviceGUID(int device_index)
 {
-    SDL_GUID guid;
-    SDL_zero(guid);
-    //ff0013db5669727475616c2043007601
-    const uint8_t guid_data[] = {
-        0xff, 0x00, 0x13, 0xdb, 0x56, 0x69, 0x72, 0x74,
-        0x75, 0x61, 0x6c, 0x20, 0x43, 0x00, 0x76, 0x01
-    };
-    SDL_memcpy(guid.data, guid_data, 16);
-    return guid;
+    return SDL_StringToGUID("000085f15365676120447265616d6300");
 }
 
 static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)

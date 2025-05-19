@@ -241,9 +241,19 @@ if (joysticks == NULL) {
         SDL_Log("Joystick instance ID: %ld", (long)instance_id);
 
         joy = SDL_OpenJoystick(instance_id);
+
         if (joy) {
             SDL_Log("Opened joystick: %s", SDL_GetJoystickName(joy));
-            // Use joystick `joy` as needed...
+            if (!SDL_IsGamepad(instance_id))    
+            {
+                    SDL_Log("Joystick %ld is not a gamepad", (long)instance_id);
+            } else {
+                SDL_Log("Joystick %ld is a gamepad", (long)instance_id);
+            }
+            SDL_GUID guid = SDL_GetJoystickGUIDForID(instance_id);
+            char guid_str[33];
+            SDL_GUIDToString(guid, guid_str, sizeof(guid_str));
+            SDL_Log("Joystick instance ID %ld GUID: %s", (long)instance_id, guid_str);
         } else {
             SDL_Log("Failed to open joystick %ld: %s", (long)instance_id, SDL_GetError());
         }
@@ -253,28 +263,28 @@ if (joysticks == NULL) {
 }
 
        // Get gamepads
-    // SDL_Gamepad *controller = NULL;
-    // int count = 0;
-    // SDL_JoystickID *gamepads = SDL_GetGamepads(&count);
-    // SDL_Log("Number of gamepads detected: %d", count);
+    SDL_Gamepad *controller = NULL;
+    int count = 0;
+    SDL_JoystickID *gamepads = SDL_GetGamepads(&count);
+    SDL_Log("Number of gamepads detected: %d", count);
 
-    // if (count > 0) {
-    //     SDL_JoystickID instance_id = gamepads[0];
-    //     SDL_GUID guid = SDL_GetGamepadGUIDForID(instance_id);
-    //     char guid_str[33];
-    //     SDL_GUIDToString(guid, guid_str, sizeof(guid_str));
-    //     SDL_Log("Gamepad instance ID %ld GUID: %s", (long)instance_id, guid_str);
+    if (count > 0) {
+        SDL_JoystickID instance_id = gamepads[0];
+        SDL_GUID guid = SDL_GetGamepadGUIDForID(instance_id);
+        char guid_str[33];
+        SDL_GUIDToString(guid, guid_str, sizeof(guid_str));
+        SDL_Log("Gamepad instance ID %ld GUID: %s", (long)instance_id, guid_str);
 
-    //     controller = SDL_OpenGamepad(instance_id);
-    //     if (!controller) {
-    //         SDL_Log("Failed to open gamepad (instance ID %ld): %s", (long)instance_id, SDL_GetError());
-    //     } else {
-    //         SDL_Log("Opened gamepad: %s", SDL_GetGamepadName(controller));
-    //     }
-    // } else {
-    //     SDL_Log("No compatible SDL3 gamepads found.");
-    // }
-    // SDL_free(gamepads);
+        controller = SDL_OpenGamepad(instance_id);
+        if (!controller) {
+            SDL_Log("Failed to open gamepad (instance ID %ld): %s", (long)instance_id, SDL_GetError());
+        } else {
+            SDL_Log("Opened gamepad: %s", SDL_GetGamepadName(controller));
+        }
+    } else {
+        SDL_Log("No compatible SDL3 gamepads found.");
+    }
+    SDL_free(gamepads);
 
     InitGL(640, 480);
     int done = 0;
@@ -284,7 +294,7 @@ if (joysticks == NULL) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             HandleJoystickInput(joy, &xspeed, &yspeed, ROTATION_SPEED);
-
+            // HandleGameControllerInput(controller, &xspeed, &yspeed, ROTATION_SPEED);
             switch (event.type) {
                 case SDL_EVENT_QUIT:
                     break;
@@ -310,7 +320,7 @@ if (joysticks == NULL) {
             }
         }
 
-    // HandleGameControllerInput(controller, &xspeed, &yspeed, ROTATION_SPEED);
+
 
             // printf("xspeed: %f, yspeed: %f\n", xspeed, yspeed);
         Uint32 frameStart  = SDL_GetTicksNS();
@@ -329,7 +339,7 @@ if (joysticks == NULL) {
         }
     }
 
-    // SDL_CloseGamepad(controller);
+    SDL_CloseGamepad(controller);
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

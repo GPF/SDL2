@@ -78,14 +78,27 @@ macro(add_sdl_example_executable TARGET)
     target_link_libraries(${TARGET} PRIVATE SDL3::${sdl_name_component})
 
     list(APPEND SDL_EXAMPLE_EXECUTABLES ${TARGET})
-    if(AST_DATAFILES)
-        if(PSP OR PS2)
-            add_custom_command(TARGET ${TARGET} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} ARGS -E make_directory $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
-                COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${AST_DATAFILES} $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
-                WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-            )
-        else()
+if(AST_DATAFILES)
+    if(DREAMCAST)
+        # Set up romdisk directory
+        set(ROMDISK_DIR "${CMAKE_CURRENT_BINARY_DIR}/romdisk_${TARGET}")
+        file(MAKE_DIRECTORY "${ROMDISK_DIR}")
+
+        # Copy each data file into the romdisk folder
+        foreach(RESOURCE_FILE ${AST_DATAFILES})
+            file(COPY "${RESOURCE_FILE}" DESTINATION "${ROMDISK_DIR}")
+        endforeach()
+
+        # Embed the romdisk into the ELF binary
+        kos_add_romdisk(${TARGET} "${ROMDISK_DIR}" ${TARGET})
+    elseif(PSP OR PS2)
+        # Keep existing logic for PSP and PS2
+        add_custom_command(TARGET ${TARGET} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} ARGS -E make_directory $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
+            COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${AST_DATAFILES} $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    else()
             add_dependencies(${TARGET} copy-sdl-example-resources)
         endif()
         if(APPLE)
@@ -108,6 +121,8 @@ macro(add_sdl_example_executable TARGET)
         endif()
     elseif(PSP)
         target_link_libraries(${TARGET} PRIVATE GL)
+    elseif(DREAMCAST)
+        target_link_libraries(${TARGET} PRIVATE GL pthread)        
     elseif(EMSCRIPTEN)
         set_property(TARGET ${TARGET} PROPERTY SUFFIX ".html")
         target_link_options(${TARGET} PRIVATE -sALLOW_MEMORY_GROWTH=1)
@@ -198,6 +213,36 @@ if(N3DS)
         )
     endforeach()
 endif()
+
+if(DREAMCAST)
+    foreach(APP ${SDL_EXAMPLE_EXECUTABLES})
+        target_link_libraries(${APP} PRIVATE GL pthread)
+
+        get_target_property(TARGET_BINARY_DIR ${APP} BINARY_DIR)
+        set(ROMDISK_DIR "${TARGET_BINARY_DIR}/romdisk_${APP}")
+        set(OUTPUT_DIR  "${TARGET_BINARY_DIR}/sdl-${APP}")
+        file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+
+        # Use SDL_DATAFILES instead of ADDITIONAL_CLEAN_FILES
+        get_target_property(DATAFILES ${APP} SDL_DATAFILES)
+
+        if(DATAFILES)
+            file(MAKE_DIRECTORY "${ROMDISK_DIR}")
+            foreach(RESOURCE_FILE ${DATAFILES})
+                file(COPY "${RESOURCE_FILE}" DESTINATION "${ROMDISK_DIR}")
+            endforeach()
+            kos_add_romdisk(${APP} "${ROMDISK_DIR}" ${APP})
+        endif()
+
+        add_custom_command(TARGET ${APP} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "$<TARGET_FILE:${APP}>"
+                "${OUTPUT_DIR}/${APP}.elf"
+        )
+    endforeach()
+endif()
+
+
 
 if(RISCOS)
     set(SDL_EXAMPLE_EXECUTABLES_AIF)

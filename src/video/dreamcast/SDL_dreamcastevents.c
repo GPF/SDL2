@@ -73,6 +73,8 @@ const static char sdl_mousebtn[] = {
 };
 
 static void mouse_update(void) {
+    // printf("DREAMCAST_PumpEvents() mouse_update() called\n");
+    static int mouse_init = 0;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_MOUSE);
     if (!dev) return;
 
@@ -133,31 +135,21 @@ static void mouse_update(void) {
 
 static SDL_KeyboardID get_dreamcast_keyboard_id(void) {
     static SDL_KeyboardID keyboard_id = 0;
-    if (keyboard_id != 0) {
-        return keyboard_id;
-    }
 
-    int no_kbd_loop = 0;
-    while (keyboard_id == 0 && no_kbd_loop < 25) {
+    if (keyboard_id == 0) {
         int count = 0;
         SDL_KeyboardID *keyboards = SDL_GetKeyboards(&count);
-
         if (keyboards && count > 0) {
             keyboard_id = keyboards[0];
-        } else {
-            SDL_free(keyboards);
-            timer_spin_sleep(500);  // from KOS
-            no_kbd_loop++;
         }
-
         SDL_free(keyboards);
     }
 
     return keyboard_id;
 }
-
 extern int dreamcast_text_input_enabled;
 static void keyboard_update(void) {
+    // printf("DREAMCAST_PumpEvents() keyboard_update() called\n");
     static kbd_state_t old_state;
     kbd_state_t *state;
     maple_device_t *dev;
@@ -231,14 +223,16 @@ static void keyboard_update(void) {
     }
 
     old_state = *state;
+    // printf("DREAMCAST_PumpEvents() keyboard_update() done\n");
 }
-
 
 void DREAMCAST_PumpEvents(SDL_VideoDevice *_this)
 {
+    // printf("DREAMCAST_PumpEvents() called\n");
     static Uint32 last_time = 0;
     Uint32 now = SDL_GetTicks();
-    if (now - last_time > MIN_FRAME_UPDATE) {
+
+    if ((now - last_time) >= MIN_FRAME_UPDATE) {
         keyboard_update();
         mouse_update();
         last_time = now;

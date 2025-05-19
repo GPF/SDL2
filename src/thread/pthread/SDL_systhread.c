@@ -26,6 +26,11 @@
 #include <pthread_np.h>
 #endif
 
+#ifdef SDL_PLATFORM_DREAMCAST
+#undef HAVE_SIGNAL_H
+#endif
+
+
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif

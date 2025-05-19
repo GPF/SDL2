@@ -300,6 +300,7 @@
 #cmakedefine SDL_JOYSTICK_N3DS 1
 #cmakedefine SDL_JOYSTICK_PS2 1
 #cmakedefine SDL_JOYSTICK_PSP 1
+#cmakedefine SDL_JOYSTICK_DREAMCAST 1
 #cmakedefine SDL_JOYSTICK_RAWINPUT 1
 #cmakedefine SDL_JOYSTICK_USBHID 1
 #cmakedefine SDL_JOYSTICK_VIRTUAL 1
@@ -496,6 +497,7 @@
 #cmakedefine SDL_FILESYSTEM_PSP 1
 #cmakedefine SDL_FILESYSTEM_PS2 1
 #cmakedefine SDL_FILESYSTEM_N3DS 1
+#cmakedefine SDL_FILESYSTEM_DREAMCAST 1
 
 #cmakedefine SDL_FILESYSTEM_PRIVATE 1
 

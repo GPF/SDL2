@@ -163,7 +163,7 @@ static SDL_VideoDevice *DREAMCAST_CreateDevice(void)
     device->GL_MakeCurrent = DREAMCAST_GL_MakeCurrent;
     device->GL_SwapWindow = DREAMCAST_GL_SwapBuffers;
     device->GL_CreateContext = DREAMCAST_GL_CreateContext;
-    // device->GL_DeleteContext = DREAMCAST_GL_DeleteContext;
+    device->GL_DestroyContext = DREAMCAST_GL_DestroyContext;
 #endif
 
     device->free = DREAMCAST_DeleteDevice;
@@ -205,13 +205,13 @@ static bool DREAMCAST_VideoInit(SDL_VideoDevice *_this) {
         return false;
     }
 
-#ifndef SDL_VIDEO_OPENGL
+// #ifndef SDL_VIDEO_OPENGL
     if (!video_mode_hint) {
-        SDL_Log("No video mode hint set, defaulting to SDL_DC_DMA_VIDEO with double buffering");
-        SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DMA_VIDEO");
-        SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "1");
+        SDL_Log("No video mode hint set, defaulting to SDL_DC_DIRECT_VIDEO with no double buffering");
+        SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO");
+        SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "0");
     }
-#endif
+// #endif
 
     SDL_Log("SDL3 Dreamcast video initialized: %dx%d PM_RGB888", width, height);
     return true;
@@ -254,13 +254,13 @@ static bool DREAMCAST_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *d
         mode->h = 480;
     }
   
-#ifdef SDL_VIDEO_OPENGL
+// #ifdef SDL_VIDEO_OPENGL
     // Enforce OpenGL requirement for 640x480 if SDL_VIDEO_OPENGL is disabled
     // if (SDL_GetCurrentVideoDriver() && strcmp(SDL_GetCurrentVideoDriver(), "opengl") == 0) {
         mode->w = 640;
         mode->h = 480;
     // }
-#endif
+// #endif
   
 
     // Detect cable and region

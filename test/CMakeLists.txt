@@ -125,7 +125,7 @@ macro(add_sdl_test_executable TARGET)
     SDL_AddCommonCompilerFlags(${TARGET})
     target_include_directories(${TARGET} PRIVATE "${SDL3_SOURCE_DIR}/src/video/khronos")
     target_link_libraries(${TARGET} PRIVATE SDL3::SDL3_test SDL3::${sdl_name_component})
-    if(NOT AST_NO_C90 AND NOT SDL_CMAKE_PLATFORM MATCHES "^(n3ds|ps2|psp)$")
+    if(NOT AST_NO_C90 AND NOT SDL_CMAKE_PLATFORM MATCHES "^(n3ds|ps2|psp|dreamcast)$")
         set_property(TARGET ${TARGET} PROPERTY C_STANDARD 90)
         set_property(TARGET ${TARGET} PROPERTY C_EXTENSIONS FALSE)
     endif()
@@ -152,7 +152,7 @@ macro(add_sdl_test_executable TARGET)
         set_property(TARGET ${TARGET} PROPERTY SDL_NONINTERACTIVE_TIMEOUT "${AST_NONINTERACTIVE_TIMEOUT}")
     endif()
     if(AST_NEEDS_RESOURCES)
-        if(PSP OR PS2 OR N3DS)
+        if(PSP OR PS2 OR N3DS OR DREAMCAST)
             add_custom_command(TARGET ${TARGET} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} ARGS -E make_directory $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
                 COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${RESOURCE_FILES} $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET})
@@ -525,6 +525,39 @@ if(N3DS)
         )
     endforeach()
 endif()
+
+if(DREAMCAST)
+    foreach(APP ${SDL_TEST_EXECUTABLES})
+        # Add Dreamcast-specific link libraries
+        target_link_libraries(${APP} PRIVATE SDL3 GL pthread)
+        get_target_property(NEEDS_RESOURCES ${APP} AST_NEEDS_RESOURCES)
+        get_target_property(RESOURCE_FILES   ${APP} RESOURCE_FILES)
+        get_target_property(TARGET_BINARY_DIR ${APP} BINARY_DIR)
+        set(ROMDISK_DIR "${TARGET_BINARY_DIR}/romdisk_${APP}")
+        set(OUTPUT_DIR  "${TARGET_BINARY_DIR}/sdl-${APP}")
+
+        file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+
+        if(NEEDS_RESOURCES AND RESOURCE_FILES)
+            file(MAKE_DIRECTORY "${ROMDISK_DIR}")
+
+            foreach(RESOURCE_FILE ${RESOURCE_FILES})
+                file(COPY "${RESOURCE_FILE}" DESTINATION "${ROMDISK_DIR}")
+            endforeach()
+
+            # Attach ROM disk to Dreamcast ELF
+            kos_add_romdisk(${APP} "${ROMDISK_DIR}" ${APP})
+        endif()
+
+        # Copy ELF into test output dir (like PSP/N3DS do)
+        add_custom_command(TARGET ${APP} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "$<TARGET_FILE:${APP}>"
+                "${OUTPUT_DIR}/${APP}.elf"
+        )
+    endforeach()
+endif()
+
 
 if(RISCOS)
     set(SDL_TEST_EXECUTABLES_AIF)

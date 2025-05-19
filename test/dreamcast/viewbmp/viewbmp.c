@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
             if (e.type == SDL_EVENT_QUIT) {
                 running = 0;
             }
+            
         }
 
         // Get window surface and blit image
@@ -51,6 +52,7 @@ int main(int argc, char *argv[]) {
             SDL_BlitSurface(image, NULL, window_surface, NULL);
             SDL_UpdateWindowSurface(window);
         }
+        SDL_Log("Blitted image to window surface");
     }
 
     // Cleanup

@@ -145,20 +145,20 @@ const static struct {
     #undef DEF
 };
 
-typedef struct {
-    int red_size;
-    int green_size;
-    int blue_size;
-    int alpha_size;
-    int depth_size;
-    int stencil_size;
-    int double_buffer;
-    int pixel_mode;
-    int Rmask;
-    int Gmask;
-    int Bmask;
-    int pitch;
-} DreamcastGLContext;
+// typedef struct {
+//     int red_size;
+//     int green_size;
+//     int blue_size;
+//     int alpha_size;
+//     int depth_size;
+//     int stencil_size;
+//     int double_buffer;
+//     int pixel_mode;
+//     int Rmask;
+//     int Gmask;
+//     int Bmask;
+//     int pitch;
+// } DreamcastGLContext;
 
 void (*DREAMCAST_GL_GetProcAddress(SDL_VideoDevice *_this, const char *proc))(void)
 {
@@ -172,7 +172,7 @@ void (*DREAMCAST_GL_GetProcAddress(SDL_VideoDevice *_this, const char *proc))(vo
 
 
 bool DREAMCAST_GL_LoadLibrary(SDL_VideoDevice *_this, const char *path) {
-    _this->gl_config.driver_loaded = 1;
+    // _this->gl_config.driver_loaded = 1;
     return true;
 }
 
@@ -181,18 +181,61 @@ bool DREAMCAST_GL_SwapBuffers(SDL_VideoDevice *_this, SDL_Window * window){
     return true;
 }
 
-bool DREAMCAST_GL_Initialize(SDL_VideoDevice *_this) {
-    printf("Initializing SDL3 GLdc...\n");
+typedef struct {
+    GLdcConfig config;
+} DreamcastGLContext;
+
+
+// bool DREAMCAST_GL_Initialize(SDL_VideoDevice *_this) {
+//     printf("Initializing SDL3 GLdc...\n");
+//     // glKosInit();
+
+//     // // Set default values or configure attributes as needed
+//     // _this->gl_config.red_size = 8;
+//     // _this->gl_config.green_size = 8;
+//     // _this->gl_config.blue_size = 8;
+//     // _this->gl_config.alpha_size = 8;
+//     // _this->gl_config.depth_size = 32;
+//     // _this->gl_config.stencil_size = 8;
+//     // _this->gl_config.double_buffer = 1;
+
+//     GLdcConfig config;
+//     memset(&config, 0, sizeof(GLdcConfig)); // Ensure clean initialization
+//     glKosInitConfig(&config);
+
+//     // Manually set each field after initialization
+//     config.autosort_enabled = GL_FALSE;           // Use manual sorting with depth testing
+//     config.fsaa_enabled = GL_FALSE;              // Disable FSAA for better performance
+//     config.internal_palette_format = GL_RGBA4;   // Use RGBA4 for paletted textures
+//     // config->initial_op_capacity = 1024 * 3;
+//     // config->initial_pt_capacity = 512 * 3;
+//     // config->initial_tr_capacity = 1024 * 3;
+//     // config->initial_immediate_capacity = 1024 * 3;
+//     config.texture_twiddle = GL_FALSE;            // Enable texture twiddling for performance
+
+//     // Apply the configuration before initializing GLdc
+//     glKosInitEx(&config);
+
+    
+//     if (DREAMCAST_GL_LoadLibrary(_this, NULL) == false) {
+//         return false;
+//     }
+
+//     // vid_set_mode(DM_640x480_VGA, PM_RGB888);
+//     return true;
+// }
+
+void DREAMCAST_GL_Shutdown(SDL_VideoDevice *_this) {
+    printf("Shutting down GLdc...\n");
+    glKosShutdown();
+}
+
+SDL_GLContext DREAMCAST_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window *window) {
+    DreamcastGLContext *context;
+
+    printf("Creating Dreamcast SDL3 OpenGL context...\n");
     // glKosInit();
 
-    // // Set default values or configure attributes as needed
-    // _this->gl_config.red_size = 8;
-    // _this->gl_config.green_size = 8;
-    // _this->gl_config.blue_size = 8;
-    // _this->gl_config.alpha_size = 8;
-    // _this->gl_config.depth_size = 32;
-    // _this->gl_config.stencil_size = 8;
-    // _this->gl_config.double_buffer = 1;
 
     GLdcConfig config;
     memset(&config, 0, sizeof(GLdcConfig)); // Ensure clean initialization
@@ -211,98 +254,38 @@ bool DREAMCAST_GL_Initialize(SDL_VideoDevice *_this) {
     // Apply the configuration before initializing GLdc
     glKosInitEx(&config);
 
-    
-    if (DREAMCAST_GL_LoadLibrary(_this, NULL) == false) {
-        return false;
-    }
-
-    // vid_set_mode(DM_640x480_VGA, PM_RGB888);
-    return true;
-}
-
-void DREAMCAST_GL_Shutdown(SDL_VideoDevice *_this) {
-    printf("Shutting down GLdc...\n");
-    glKosShutdown();
-}
-
-SDL_GLContext DREAMCAST_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window *window) {
-    DreamcastGLContext *context;
-
-    // Initialize the OpenGL driver if it hasn't been initialized
-    if (DREAMCAST_GL_Initialize(_this) == false) {
-        SDL_SetError("Failed to initialize OpenGL");
-        return NULL;
-    }
-
-    printf("Creating Dreamcast SDL3 OpenGL context...\n");
-
     context = (DreamcastGLContext *) SDL_calloc(1, sizeof(DreamcastGLContext));
     if (!context) {
         SDL_OutOfMemory();
         return NULL;
     }
-
-    // Store the GL attributes in the context
-    // context->red_size = 8;   // You can still set these if you want to keep them in context
-    // context->green_size = 8;
-    // context->blue_size = 8;
-    // context->alpha_size = 8;
-    // context->depth_size = 32;
-    // context->stencil_size = 8;
-    // context->double_buffer = 1;
-
+    context->config = config;
+    // if (DREAMCAST_GL_LoadLibrary(_this, NULL) == false) {
+    //     return false;
+    // }
     return (SDL_GLContext) context;
 }
 
 
 bool DREAMCAST_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window *window, SDL_GLContext context) {
-    DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
-    glKosInit();
-    // Validate the context
-    if (!glcontext) {
-        SDL_SetError("Invalid OpenGL context");
-        return false;
-    }
-    
-    // Check if the window is valid
-    if (!window) {
-        SDL_SetError("Invalid window");
-        return false;
-    }
-    
-    // // Set up the GLdcConfig structure
-    // GLdcConfig config;
-    // memset(&config, 0, sizeof(config)); // Initialize config to zero
-
-    // // Configure the GLdcConfig with values from your context
-    // config.autosort_enabled = GL_FALSE; // or GL_TRUE based on your needs
-    // config.fsaa_enabled = GL_FALSE; // or GL_TRUE if you want anti-aliasing
-    // config.internal_palette_format = GL_RGBA4; // Adjust if needed
-    // config.initial_op_capacity = 1024; // Example values
-    // config.initial_tr_capacity = 1024;
-    // config.initial_pt_capacity = 1024;
-    // config.initial_immediate_capacity = 1024;
-    // config.texture_twiddle = GL_TRUE; // Adjust based on your needs
-    
-    // // Initialize GL with the configured settings
-    // glKosInitEx(&config);
-
     printf("OpenGL context made current for window %p\n", window);
     return true;
 }
 
-// void DREAMCAST_GL_DeleteContext(SDL_VideoDevice *_this, SDL_GLContext context) {
-//     DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
-//     if (glcontext) {
-//         SDL_free(glcontext);
+bool DREAMCAST_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context) {
+    DreamcastGLContext *glcontext = (DreamcastGLContext *) context;
+    if (glcontext) {
+        SDL_free(glcontext);
+        return true;
+    }
+    return false;
+}
+
+// void SDL_DREAMCAST_InitGL(SDL_VideoDevice *_this) { 
+//     if (DREAMCAST_GL_Initialize(_this) == false) {
+//         SDL_SetError("Failed to initialize OpenGL");
 //     }
 // }
-
-void SDL_DREAMCAST_InitGL(SDL_VideoDevice *_this) { 
-    if (DREAMCAST_GL_Initialize(_this) == false) {
-        SDL_SetError("Failed to initialize OpenGL");
-    }
-}
 
 #endif /* SDL_VIDEO_DRIVER_DREAMCAST */
 /* vi: set ts=4 sw=4 expandtab: */

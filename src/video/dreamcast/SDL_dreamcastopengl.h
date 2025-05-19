@@ -10,7 +10,7 @@ extern bool DREAMCAST_GL_Initialize(SDL_VideoDevice *_this);
 extern void DREAMCAST_GL_Shutdown(SDL_VideoDevice *_this);
 extern SDL_GLContext DREAMCAST_GL_CreateContext(SDL_VideoDevice *_this, SDL_Window *window);
 extern bool DREAMCAST_GL_MakeCurrent(SDL_VideoDevice *_this, SDL_Window *window, SDL_GLContext context);
-extern void DREAMCAST_GL_DeleteContext(SDL_VideoDevice *_this, SDL_GLContext context);
+extern bool DREAMCAST_GL_DestroyContext(SDL_VideoDevice *_this, SDL_GLContext context);
 
 #endif /* SDL_VIDEO_DRIVER_DREAMCAST && SDL_VIDEO_OPENGL */
 

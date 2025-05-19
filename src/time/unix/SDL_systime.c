@@ -24,7 +24,11 @@
 
 #include "../SDL_time_c.h"
 #include <errno.h>
+
+#if !defined(SDL_PLATFORM_DREAMCAST)
 #include <langinfo.h>
+#endif
+
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -37,10 +41,11 @@
 
 void SDL_GetSystemTimeLocalePreferences(SDL_DateFormat *df, SDL_TimeFormat *tf)
 {
-    /* This *should* be well-supported aside from very old legacy systems, but apparently
-     * Android didn't add this until SDK version 26, so a check is needed...
-     */
-#ifdef HAVE_NL_LANGINFO
+#ifdef SDL_PLATFORM_DREAMCAST
+    if (df) *df = SDL_DATE_FORMAT_YYYYMMDD;
+    if (tf) *tf = SDL_TIME_FORMAT_24HR;
+#else
+#if defined(HAVE_NL_LANGINFO)
     if (df) {
         const char *s = nl_langinfo(D_FMT);
 
@@ -76,7 +81,7 @@ found_date:
     if (tf) {
         const char *s = nl_langinfo(T_FMT);
 
-        // Figure out the preferred system date format.
+        // Figure out the preferred system time format.
         if (s) {
             while (*s) {
                 switch (*s++) {
@@ -96,7 +101,8 @@ found_date:
             }
         }
     }
-#endif
+#endif // HAVE_NL_LANGINFO
+#endif // SDL_PLATFORM_DREAMCAST
 }
 
 bool SDL_GetCurrentTime(SDL_Time *ticks)
@@ -104,7 +110,7 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     if (!ticks) {
         return SDL_InvalidParamError("ticks");
     }
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) && !defined(SDL_PLATFORM_DREAMCAST)
     struct timespec tp;
 
     if (clock_gettime(CLOCK_REALTIME, &tp) == 0) {
@@ -114,7 +120,15 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     }
 
     SDL_SetError("Failed to retrieve system time (%i)", errno);
+#elif defined(SDL_PLATFORM_DREAMCAST)
+    struct timeval tv;
+    SDL_zero(tv);
+    if (gettimeofday(&tv, NULL) == 0) {
+        *ticks = SDL_SECONDS_TO_NS(tv.tv_sec) + SDL_US_TO_NS(tv.tv_usec);
+        return true;
+    }
 
+    SDL_SetError("Dreamcast gettimeofday() failed");
 #elif defined(SDL_PLATFORM_APPLE)
     clock_serv_t cclock;
     int ret = host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
@@ -153,10 +167,10 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
 
 bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
 {
-#if defined (HAVE_GMTIME_R) || defined(HAVE_LOCALTIME_R)
+    struct tm *tm = NULL;
+#if defined(HAVE_GMTIME_R) || defined(HAVE_LOCALTIME_R)
     struct tm tm_storage;
 #endif
-    struct tm *tm = NULL;
 
     if (!dt) {
         return SDL_InvalidParamError("dt");
@@ -165,13 +179,13 @@ bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
     const time_t tval = (time_t)SDL_NS_TO_SECONDS(ticks);
 
     if (localTime) {
-#ifdef HAVE_LOCALTIME_R
+#if defined(HAVE_LOCALTIME_R)
         tm = localtime_r(&tval, &tm_storage);
 #else
         tm = localtime(&tval);
 #endif
     } else {
-#ifdef HAVE_GMTIME_R
+#if defined(HAVE_GMTIME_R)
         tm = gmtime_r(&tval, &tm_storage);
 #else
         tm = gmtime(&tval);
@@ -188,13 +202,9 @@ bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
         dt->nanosecond = ticks % SDL_NS_PER_SECOND;
         dt->day_of_week = tm->tm_wday;
 
-        /* tm_gmtoff wasn't formally standardized until POSIX.1-2024, but practically it has been available on desktop
-         * *nix platforms such as Linux/glibc, FreeBSD, OpenBSD, NetBSD, OSX/macOS, and others since the 1990s.
-         *
-         * The notable exception is Solaris, where the timezone offset must still be retrieved in the strictly POSIX.1-2008
-         * compliant way.
-         */
-#if (_POSIX_VERSION >= 202405L) || (!defined(sun) && !defined(__sun))
+#if defined(SDL_PLATFORM_DREAMCAST)
+        dt->utc_offset = 0;
+#elif (_POSIX_VERSION >= 202405L) || (!defined(sun) && !defined(__sun))
         dt->utc_offset = (int)tm->tm_gmtoff;
 #else
         if (localTime) {
@@ -210,5 +220,6 @@ bool SDL_TimeToDateTime(SDL_Time ticks, SDL_DateTime *dt, bool localTime)
 
     return SDL_SetError("SDL_DateTime conversion failed (%i)", errno);
 }
+
 
 #endif // SDL_TIME_UNIX

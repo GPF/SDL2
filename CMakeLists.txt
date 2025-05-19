@@ -2933,15 +2933,38 @@ elseif(N3DS)
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/io/n3ds/*.c")
 
 elseif(DREAMCAST)
+  set(SDL_TESTS false)
+  set(SDL_EXAMPLES true)
   set(SDL_THREAD_PTHREAD 1)
   CheckPTHREAD()
   set(HAVE_SDL_THREADS TRUE)
   set(HAVE_PTHREAD_SETNAME_NP TRUE)
 
+  if(SDL_CLOCK_GETTIME)
+    set(HAVE_CLOCK_GETTIME 1)
+  endif()   
+
   set(SDL_TIMER_UNIX 1)
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/timer/unix/*.c")
   set(HAVE_SDL_TIMERS TRUE)  
+  set(SDL_TIME_UNIX 1)
+  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/time/unix/*.c")
+  set(HAVE_SDL_TIME TRUE)
 
+  set(SDL_FILESYSTEM_DREAMCAST 1)
+  set(HAVE_SDL_FILESYSTEM TRUE)
+  set(SDL_FILESYSTEM_DUMMY false)
+  sdl_glob_sources("${SDL3_SOURCE_DIR}/src/filesystem/dreamcast/*.c")
+
+
+  if(SDL_JOYSTICK)
+      set(SDL_JOYSTICK_DREAMCAST 1)
+      # set(HAVE_VIRTUAL_JOYSTICK FALSE)
+      # set(SDL_VIRTUAL_JOYSTICK FALSE)
+      sdl_glob_sources("${SDL3_SOURCE_DIR}/src/joystick/dreamcast/*.c")
+      set(HAVE_SDL_JOYSTICK TRUE)
+  endif()
+    
   if(SDL_VIDEO)
     set(SDL_VIDEO_DRIVER_DREAMCAST 1)
     sdl_glob_sources("${SDL3_SOURCE_DIR}/src/video/dreamcast/*.c") 

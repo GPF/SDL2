@@ -1721,7 +1721,9 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, &profile_mask);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
     SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
-
+#ifdef SDL_PLATFORM_DREAMCAST
+        SDL_Log("Dreamcast GL renderer initialization started.");
+#endif
 #ifndef SDL_VIDEO_VITA_PVR_OGL
     SDL_SyncWindow(window);
     window_flags = SDL_GetWindowFlags(window);
@@ -1786,13 +1788,16 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
 
     data->context = SDL_GL_CreateContext(window);
     if (!data->context) {
+        SDL_Log("Couldn't create OpenGL context: %s", SDL_GetError());
         goto error;
     }
     if (!SDL_GL_MakeCurrent(window, data->context)) {
+        SDL_Log("Couldn't make OpenGL context current: %s", SDL_GetError());
         goto error;
     }
 
     if (!GL_LoadFunctions(data)) {
+        SDL_Log("Couldn't load OpenGL functions: %s", SDL_GetError());
         goto error;
     }
 
@@ -1808,6 +1813,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         (value & SDL_GL_CONTEXT_DEBUG_FLAG)) {
         data->debug_enabled = true;
     }
+
     if (data->debug_enabled && SDL_GL_ExtensionSupported("GL_ARB_debug_output")) {
         PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackARBFunc = (PFNGLDEBUGMESSAGECALLBACKARBPROC)SDL_GL_GetProcAddress("glDebugMessageCallbackARB");
 
@@ -1886,7 +1892,8 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
 #ifdef SDL_PLATFORM_MACOS
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_UYVY);
 #endif
-
+    SDL_Log("here we are");
+#ifndef SDL_PLATFORM_DREAMCAST
     if (SDL_GL_ExtensionSupported("GL_EXT_framebuffer_object")) {
         data->GL_EXT_framebuffer_object_supported = true;
         data->glGenFramebuffersEXT = (PFNGLGENFRAMEBUFFERSEXTPROC)
@@ -1903,7 +1910,8 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         SDL_SetError("Can't create render targets, GL_EXT_framebuffer_object not available");
         goto error;
     }
-
+#endif
+       SDL_Log("here we are2");
     // Set up parameters for rendering
     data->glMatrixMode(GL_MODELVIEW);
     data->glLoadIdentity();

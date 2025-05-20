@@ -200,18 +200,26 @@ void HandleJoystickInput(SDL_Joystick *joystick, float *xspeed, float *yspeed, c
 }
 
 
-
 void HandleGameControllerInput(SDL_Gamepad *controller, float *xspeed, float *yspeed, const float ROTATION_SPEED) {
     if (!controller) return;
 
-    // Axes: -1 to +1
-    float axis_x = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTX);
-    float axis_y = SDL_GetGamepadAxis(controller, SDL_GAMEPAD_AXIS_LEFTY);
+    if (SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_DPAD_UP)) {
+        *xspeed -= ROTATION_SPEED * 0.101f;
+    } else if (SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_DPAD_DOWN)) {
+        *xspeed += ROTATION_SPEED * 0.101f;
+    }
 
-    // Dead zone filtering
-    const float DEAD_ZONE = 0.2f;
-    *xspeed = fabsf(axis_y) > DEAD_ZONE ? axis_y * ROTATION_SPEED : 0.0f;
-    *yspeed = fabsf(axis_x) > DEAD_ZONE ? axis_x * ROTATION_SPEED : 0.0f;
+    if (SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_DPAD_LEFT)) {
+        *yspeed -= ROTATION_SPEED * 0.101f;
+    } else if (SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) {
+        *yspeed += ROTATION_SPEED * 0.101f;
+    }
+
+    // Clamp values
+    if (*xspeed > MAX_ROTATION_SPEED) *xspeed = MAX_ROTATION_SPEED;
+    if (*xspeed < -MAX_ROTATION_SPEED) *xspeed = -MAX_ROTATION_SPEED;
+    if (*yspeed > MAX_ROTATION_SPEED) *yspeed = MAX_ROTATION_SPEED;
+    if (*yspeed < -MAX_ROTATION_SPEED) *yspeed = -MAX_ROTATION_SPEED;
 
     if (SDL_GetGamepadButton(controller, SDL_GAMEPAD_BUTTON_SOUTH)) {
         *xspeed = 0.0f;
@@ -219,48 +227,73 @@ void HandleGameControllerInput(SDL_Gamepad *controller, float *xspeed, float *ys
     }
 }
 
+const char *GetGamepadButtonName(SDL_GamepadButton button) {
+    switch (button) {
+        case SDL_GAMEPAD_BUTTON_SOUTH: return "A (South)";
+        case SDL_GAMEPAD_BUTTON_EAST: return "B (East)";
+        case SDL_GAMEPAD_BUTTON_WEST: return "X (West)";
+        case SDL_GAMEPAD_BUTTON_NORTH: return "Y (North)";
+        case SDL_GAMEPAD_BUTTON_BACK: return "Back";
+        case SDL_GAMEPAD_BUTTON_GUIDE: return "Guide";
+        case SDL_GAMEPAD_BUTTON_START: return "Start";
+        case SDL_GAMEPAD_BUTTON_LEFT_STICK: return "Left Stick";
+        case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return "Right Stick";
+        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return "L1";
+        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return "R1";
+        case SDL_GAMEPAD_BUTTON_DPAD_UP: return "D-Pad Up";
+        case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return "D-Pad Down";
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return "D-Pad Left";
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return "D-Pad Right";
+        default: return "Unknown";
+    }
+}
+
+#include "arch/gdb.h"
 
 int main(int argc, char **argv) {
-    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
+    // gdb_init();
+    // gdb_breakpoint();
+    // SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD);
+    SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD);
     SDL_Window *window = SDL_CreateWindow("Dreamcast SDL3 OpenGL", 640, 480, SDL_WINDOW_OPENGL);
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     SDL_GL_MakeCurrent(window, glContext); 
 
-int joystick_count = 0;
-SDL_Joystick *joy=NULL;
-SDL_JoystickID *joysticks = SDL_GetJoysticks(&joystick_count);
+// int joystick_count = 0;
+// SDL_Joystick *joy=NULL;
+// SDL_JoystickID *joysticks = SDL_GetJoysticks(&joystick_count);
 
-if (joysticks == NULL) {
-    SDL_Log("SDL_GetJoysticks failed: %s", SDL_GetError());
-} else {
-    SDL_Log("Number of joysticks detected: %d", joystick_count);
+// if (joysticks == NULL) {
+//     SDL_Log("SDL_GetJoysticks failed: %s", SDL_GetError());
+// } else {
+//     SDL_Log("Number of joysticks detected: %d", joystick_count);
 
-    for (int i = 0; i < joystick_count; i++) {
-        SDL_JoystickID instance_id = joysticks[i];
-        SDL_Log("Joystick instance ID: %ld", (long)instance_id);
+//     for (int i = 0; i < joystick_count; i++) {
+//         SDL_JoystickID instance_id = joysticks[i];
+//         SDL_Log("Joystick instance ID: %ld", (long)instance_id);
 
-        joy = SDL_OpenJoystick(instance_id);
+//         joy = SDL_OpenJoystick(instance_id);
 
-        if (joy) {
-            SDL_Log("Opened joystick: %s", SDL_GetJoystickName(joy));
-            if (!SDL_IsGamepad(instance_id))    
-            {
-                    SDL_Log("Joystick %ld is not a gamepad", (long)instance_id);
-            } else {
-                SDL_Log("Joystick %ld is a gamepad", (long)instance_id);
-            }
-            SDL_GUID guid = SDL_GetJoystickGUIDForID(instance_id);
-            char guid_str[33];
-            SDL_GUIDToString(guid, guid_str, sizeof(guid_str));
-            SDL_Log("Joystick instance ID %ld GUID: %s", (long)instance_id, guid_str);
-        } else {
-            SDL_Log("Failed to open joystick %ld: %s", (long)instance_id, SDL_GetError());
-        }
-    }
+//         if (joy) {
+//             SDL_Log("Opened joystick: %s", SDL_GetJoystickName(joy));
+//             if (!SDL_IsGamepad(instance_id))    
+//             {
+//                     SDL_Log("Joystick %ld is not a gamepad", (long)instance_id);
+//             } else {
+//                 SDL_Log("Joystick %ld is a gamepad", (long)instance_id);
+//             }
+//             SDL_GUID guid = SDL_GetJoystickGUIDForID(instance_id);
+//             char guid_str[33];
+//             SDL_GUIDToString(guid, guid_str, sizeof(guid_str));
+//             SDL_Log("Joystick instance ID %ld GUID: %s", (long)instance_id, guid_str);
+//         } else {
+//             SDL_Log("Failed to open joystick %ld: %s", (long)instance_id, SDL_GetError());
+//         }
+//     }
 
-    SDL_free(joysticks);
-}
+//     SDL_free(joysticks);
+// }
 
        // Get gamepads
     SDL_Gamepad *controller = NULL;
@@ -293,31 +326,52 @@ if (joysticks == NULL) {
     while (!done) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
-            HandleJoystickInput(joy, &xspeed, &yspeed, ROTATION_SPEED);
-            // HandleGameControllerInput(controller, &xspeed, &yspeed, ROTATION_SPEED);
+            // HandleJoystickInput(joy, &xspeed, &yspeed, ROTATION_SPEED);
+            HandleGameControllerInput(controller, &xspeed, &yspeed, ROTATION_SPEED);
             switch (event.type) {
                 case SDL_EVENT_QUIT:
+                    done = 1;
                     break;
 
-                case SDL_EVENT_JOYSTICK_AXIS_MOTION:
-                    SDL_Log("JoyAxis: instance_id=%ld, axis=%d, value=%d",
-                            (long)event.jaxis.which, event.jaxis.axis, event.jaxis.value);
+                // case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+                //     SDL_Log("JoyAxis: instance_id=%ld, axis=%d, value=%d",
+                //             (long)event.jaxis.which, event.jaxis.axis, event.jaxis.value);
+                //     break;
+
+                // case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
+                //     SDL_Log("JoyButtonDown: instance_id=%ld, button=%d",
+                //             (long)event.jbutton.which, event.jbutton.button);
+                //     break;
+
+                // case SDL_EVENT_JOYSTICK_BUTTON_UP:
+                //     SDL_Log("JoyButtonUp: instance_id=%ld, button=%d",
+                //             (long)event.jbutton.which, event.jbutton.button);
+                //     break;
+
+                case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+                    SDL_Log("GamepadButtonDown: instance_id=%ld, button=%s (%d)",
+                            (long)event.gbutton.which,
+                            GetGamepadButtonName(event.gbutton.button),
+                            event.gbutton.button);
                     break;
 
-                case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
-                    SDL_Log("JoyButtonDown: instance_id=%ld, button=%d",
-                            (long)event.jbutton.which, event.jbutton.button);
+                case SDL_EVENT_GAMEPAD_BUTTON_UP:
+                    SDL_Log("GamepadButtonUp: instance_id=%ld, button=%s (%d)",
+                            (long)event.gbutton.which,
+                            GetGamepadButtonName(event.gbutton.button),
+                            event.gbutton.button);
                     break;
 
-                case SDL_EVENT_JOYSTICK_BUTTON_UP:
-                    SDL_Log("JoyButtonUp: instance_id=%ld, button=%d",
-                            (long)event.jbutton.which, event.jbutton.button);
+                case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+                    SDL_Log("GamepadAxis: instance_id=%ld, axis=%d, value=%d",
+                            (long)event.gaxis.which, event.gaxis.axis, event.gaxis.value);
                     break;
 
                 default:
                     // SDL_Log("Event type: %d", event.type);
                     break;
             }
+
         }
 
 

@@ -688,6 +688,26 @@ static GamepadMapping_t *SDL_CreateMappingForAndroidGamepad(SDL_GUID guid)
 }
 #endif // SDL_PLATFORM_ANDROID
 
+#ifdef SDL_PLATFORM_DREAMCAST
+static GamepadMapping_t *SDL_CreateMappingForDreamcastGamepad(SDL_GUID guid)
+{
+    bool existing;
+
+    const char *mapping_string =
+        "060000001212000001dc000001000000,"
+        "Sega Dreamcast Controller,"
+        "crc:f185,"
+        "a:b2,b:b1,x:b6,y:b5,start:b3,"
+        "dpup:h0.1,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,"
+        "dpup2:h1.1,dpdown2:h1.4,dpleft2:h1.8,dpright2:h1.2,"
+        "leftx:a0,lefty:a1,rightx:a4,righty:a5,"
+        "lefttrigger:a3~,righttrigger:a2~,";
+
+    // SDL_Log("Using fallback Dreamcast mapping for GUID:");
+    return SDL_PrivateAddMappingForGUID(guid, mapping_string, &existing, SDL_GAMEPAD_MAPPING_PRIORITY_DEFAULT);
+}
+#endif
+
 /*
  * Helper function to guess at a mapping for HIDAPI gamepads
  */
@@ -999,6 +1019,10 @@ static GamepadMapping_t *SDL_PrivateGetGamepadMappingForGUID(SDL_GUID guid, bool
     } else {
         mapping = SDL_CreateMappingForAndroidGamepad(guid);
 #endif
+#ifdef SDL_PLATFORM_DREAMCAST
+    } else {
+        mapping = SDL_CreateMappingForDreamcastGamepad(guid);
+#endif        
     }
     return mapping;
 }

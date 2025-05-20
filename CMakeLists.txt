@@ -2933,7 +2933,7 @@ elseif(N3DS)
   sdl_glob_sources("${SDL3_SOURCE_DIR}/src/io/n3ds/*.c")
 
 elseif(DREAMCAST)
-  set(SDL_TESTS true)
+  set(SDL_TESTS false)
   set(SDL_EXAMPLES true)
   set(SDL_THREAD_PTHREAD 1)
   CheckPTHREAD()

@@ -22,6 +22,7 @@
 
 #ifdef SDL_JOYSTICK_DREAMCAST
 #include <SDL3/SDL.h>
+#include "../SDL_joystick_c.h"
 #include "../SDL_sysjoystick.h"
 #include "../SDL_joystick_c.h"
 #include "../SDL_gamepad_c.h"
@@ -62,7 +63,8 @@ static int NormalizeTrigger(int value)
     if (value > 255) value = 255;
     return (value * SDL_JOYSTICK_AXIS_MAX) / 255;
 }
-
+static const char *DREAMCAST_JoystickGetDeviceName(int index);
+static SDL_GUID DREAMCAST_JoystickGetDeviceGUID(int device_index);
 static uint8_t numdevs = 0;
 
 static bool DREAMCAST_JoystickInit(void) {
@@ -70,7 +72,7 @@ static bool DREAMCAST_JoystickInit(void) {
     maple_device_t *rumble_dev;
     numdevs = 0;
 
-    printf("Initializing joysticks...\n");
+    printf("Initializing Dreamcast Controllers...\n");
 
     for (int i = 0; i < MAX_JOYSTICKS; ++i) {
         dev = maple_enum_type(i, MAPLE_FUNC_CONTROLLER);
@@ -80,14 +82,37 @@ static bool DREAMCAST_JoystickInit(void) {
             SYS_Rumble_device[numdevs] = rumble_dev;
 
             printf("%srumble device at port %d\n", rumble_dev ? "Found " : "No ", i);
-            printf("Joystick found at port %d (index %d)\n", i, numdevs);
+            printf("Controller found at port %d (index %d)\n", i, numdevs);
             SDL_JoystickID instance_id = next_instance_id++;
-            instance_ids[numdevs] = instance_id;                 
+            instance_ids[numdevs] = instance_id;
+
+            // GET AND LOG GUID **BEFORE** SDL_PrivateJoystickAdded()
+            // SDL_GUID full_guid = DREAMCAST_JoystickGetDeviceGUID(instance_id);
+            // SDL_GUID stripped_guid = full_guid;
+            // SDL_SetJoystickGUIDCRC(&stripped_guid, 0);
+
+            // char full_guid_str[33];
+            // char stripped_guid_str[33];
+            // SDL_GUIDToString(full_guid, full_guid_str, sizeof(full_guid_str));
+            // SDL_GUIDToString(stripped_guid, stripped_guid_str, sizeof(stripped_guid_str));
+
+            // Uint16 crc;
+            // SDL_GetJoystickGUIDInfo(full_guid, NULL, NULL, NULL, &crc);
+
+            // SDL_Log("Dreamcast Full GUID: %s", full_guid_str);
+            // SDL_Log("DB-Matchable GUID (CRC stripped): %s", stripped_guid_str);
+            // SDL_Log("Example SDL_gamepad_db.h entry:");
+            // SDL_Log("\"%s,Sega Dreamcast Controller,crc:%.4x,a:b2,b:b1,x:b6,y:b5,start:b3,"
+            //         "dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,dpup2:h1.1,dpleft2:h1.8,"
+            //         "dpdown2:h1.4,dpright2:h1.2,righttrigger:a2~,lefttrigger:a3~,leftx:a0,"
+            //         "lefty:a1,rightx:a4,righty:a5,\",",
+            //         stripped_guid_str, crc);
+
+            // Now register with SDL
             SDL_PrivateJoystickAdded(instance_id);
-            SDL_Log("DREAMCAST_JoystickInit: instance_ids[%d] = %ld\n", numdevs, instance_ids[numdevs]);
             numdevs++;
         } else {
-            printf("No joystick at port %d\n", i);
+            printf("No Controller at port %d\n", i);
         }
     }
 
@@ -110,7 +135,7 @@ static bool DREAMCAST_JoystickInit(void) {
     //     "dpup:h0.1,dpleft:h0.8,dpdown:h0.4,dpright:h0.2,"
     //     "righttrigger:a2~,lefttrigger:a3~,leftx:a0,lefty:a1,rightx:a4,righty:a5"
     // );
-    printf("Number of joysticks initialized: %d\n", numdevs);
+    printf("Number of Controllers initialized: %d\n", numdevs);
     return numdevs > 0;
 }
 
@@ -151,23 +176,11 @@ static bool DREAMCAST_JoystickIsDevicePresent(Uint16 vendor_id, Uint16 product_i
 
 static const char *DREAMCAST_JoystickGetDeviceName(int index)
 {
-    if (index == 0) {
+    if (index >= 0 && index < 4) {
         return "Sega Dreamcast Controller";
     }
 
-    if (index == 1) {
-        return "Sega Dreamcast Controller";
-    }
-
-    if (index == 2) {
-        return "Sega Dreamcast Controller";
-    }
-
-    if (index == 3) {
-        return "Sega Dreamcast Controller";
-    }
-
-    SDL_SetError("No joystick available with that index");
+    SDL_SetError("No Controller available with that index");
     return NULL;
 }
 
@@ -191,12 +204,29 @@ static void DREAMCAST_JoystickSetDevicePlayerIndex(int device_index, int player_
 {
 }
 
+// static SDL_GUID DREAMCAST_JoystickGetDeviceGUID(int device_index)
+// {
+//     // the GUID is just the name for now
+//     const char *name = DREAMCAST_JoystickGetDeviceName(device_index);
+//     return SDL_CreateJoystickGUIDForName(name);
+// }
+
 static SDL_GUID DREAMCAST_JoystickGetDeviceGUID(int device_index)
 {
-    // the GUID is just the name for now
-    const char *name = DREAMCAST_JoystickGetDeviceName(device_index);
-    return SDL_CreateJoystickGUIDForName(name);
+    const Uint16 bus = 0x06;                      // Arbitrary, e.g., USB or platform-defined
+    const Uint16 vendor = 0x1212;                 // Arbitrary stable Dreamcast vendor ID
+    const Uint16 product = 0xDC01;                // Dreamcast controller ID
+    const Uint16 version = 0x0001;                // Version
+    const char *vendor_name = "Sega";
+    const char *product_name = "Dreamcast Controller";
+    const Uint8 driver_signature = 0x00;          // Optional driver-specific tag (0 is fine)
+    const Uint8 driver_data = 0; // Index (or port) can go here if useful
+
+    return SDL_CreateJoystickGUID(bus, vendor, product, version,
+                                  vendor_name, product_name,
+                                  driver_signature, driver_data);
 }
+
 
 static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)
 {
@@ -209,7 +239,7 @@ static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)
 
 static bool DREAMCAST_JoystickOpen(SDL_Joystick *joystick, int device_index)
 {
-    SDL_Log("DREAMCAST_JoystickOpen: device_index = %d", device_index);
+    // SDL_Log("DREAMCAST_JoystickOpen: device_index = %d", device_index);
 
     if (device_index < 0 || device_index >= numdevs) {
         SDL_SetError("Invalid joystick device index: %d", device_index);
@@ -230,7 +260,7 @@ static bool DREAMCAST_JoystickOpen(SDL_Joystick *joystick, int device_index)
     hwdata->opened = true;
     joystick->hwdata = hwdata;
 
-    SDL_Log("DREAMCAST_JoystickOpen: joystick %d opened successfully", device_index);
+    // SDL_Log("DREAMCAST_JoystickOpen: joystick %d opened successfully", device_index);
     return true;
 }
 
@@ -401,6 +431,7 @@ static void DREAMCAST_JoystickQuit(void)
 
 static bool DREAMCAST_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping *out)
 {
+    SDL_Log("DREAMCAST_JoystickGetGamepadMapping(%d) called", device_index);
     *out = (SDL_GamepadMapping){
         .a = { EMappingKind_Button, 2 },
         .b = { EMappingKind_Button, 1 },
@@ -426,6 +457,7 @@ static bool DREAMCAST_JoystickGetGamepadMapping(int device_index, SDL_GamepadMap
         .righttrigger = { EMappingKind_Axis, 2 | 0x80 }, // Right trigger (a2~, inverted)
     };
     return true;
+    // return false;
 }
 
 SDL_JoystickDriver SDL_DREAMCAST_JoystickDriver = {

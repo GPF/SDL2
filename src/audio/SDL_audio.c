@@ -74,6 +74,9 @@ static const AudioBootStrap *const bootstrap[] = {
 #ifdef SDL_AUDIO_DRIVER_VITA
     &VITAAUD_bootstrap,
 #endif
+#ifdef SDL_AUDIO_DRIVER_DREAMCAST
+    &DREAMCASTAUDIO_bootstrap,
+#endif
 #ifdef SDL_AUDIO_DRIVER_N3DS
     &N3DSAUDIO_bootstrap,
 #endif

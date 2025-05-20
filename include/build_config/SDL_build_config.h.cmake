@@ -278,6 +278,7 @@
 #cmakedefine SDL_AUDIO_DRIVER_PS2 1
 #cmakedefine SDL_AUDIO_DRIVER_N3DS 1
 #cmakedefine SDL_AUDIO_DRIVER_QNX 1
+#cmakedefine SDL_AUDIO_DRIVER_DREAMCAST 1
 
 #cmakedefine SDL_AUDIO_DRIVER_PRIVATE 1
 

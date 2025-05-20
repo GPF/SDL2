@@ -84,7 +84,7 @@ static bool DREAMCAST_JoystickInit(void) {
             SDL_JoystickID instance_id = next_instance_id++;
             instance_ids[numdevs] = instance_id;                 
             SDL_PrivateJoystickAdded(instance_id);
-            SDL_Log("DREAMCAST_JoystickInit: instance_ids[%d] = %d\n", numdevs, instance_ids[numdevs]);
+            SDL_Log("DREAMCAST_JoystickInit: instance_ids[%d] = %ld\n", numdevs, instance_ids[numdevs]);
             numdevs++;
         } else {
             printf("No joystick at port %d\n", i);
@@ -149,12 +149,26 @@ static bool DREAMCAST_JoystickIsDevicePresent(Uint16 vendor_id, Uint16 product_i
     return false;
 }
 
-static const char *DREAMCAST_JoystickGetDeviceName(int device_index)
+static const char *DREAMCAST_JoystickGetDeviceName(int index)
 {
-    if (device_index >= MAX_JOYSTICKS || !SYS_Joystick_addr[device_index]) {
-        return NULL;
+    if (index == 0) {
+        return "Sega Dreamcast Controller";
     }
-    return "Sega Dreamcast Controller";
+
+    if (index == 1) {
+        return "Sega Dreamcast Controller";
+    }
+
+    if (index == 2) {
+        return "Sega Dreamcast Controller";
+    }
+
+    if (index == 3) {
+        return "Sega Dreamcast Controller";
+    }
+
+    SDL_SetError("No joystick available with that index");
+    return NULL;
 }
 
 
@@ -179,7 +193,9 @@ static void DREAMCAST_JoystickSetDevicePlayerIndex(int device_index, int player_
 
 static SDL_GUID DREAMCAST_JoystickGetDeviceGUID(int device_index)
 {
-    return SDL_StringToGUID("000085f15365676120447265616d6300");
+    // the GUID is just the name for now
+    const char *name = DREAMCAST_JoystickGetDeviceName(device_index);
+    return SDL_CreateJoystickGUIDForName(name);
 }
 
 static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)
@@ -187,7 +203,7 @@ static SDL_JoystickID DREAMCAST_JoystickGetDeviceInstanceID(int device_index)
     if (device_index < 0 || device_index >= MAX_JOYSTICKS) {
         return -1;
     }
-    SDL_Log("DREAMCAST_JoystickGetDeviceInstanceID:instance_ids[%d] = %d\n", device_index, instance_ids[device_index]);
+    // SDL_Log("DREAMCAST_JoystickGetDeviceInstanceID:instance_ids[%d] = %d\n", device_index, instance_ids[device_index]);
     return instance_ids[device_index];
 }
 

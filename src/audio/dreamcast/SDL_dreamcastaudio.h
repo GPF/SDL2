@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2024 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,37 +18,28 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-#include "SDL_internal.h"
+#include "../../SDL_internal.h"
 
-#if defined(SDL_FILESYSTEM_DREAMCAST)
+#ifndef SDL_dreamcastaudio_h_
+#define SDL_dreamcastaudio_h_
 
-#include "../SDL_sysfilesystem.h"
-#include <errno.h>
-
-char *SDL_SYS_GetBasePath(void)
-{
-    // ROM disk path used by KOS
-    return SDL_strdup("/rd/");
-}
-
-char *SDL_SYS_GetPrefPath(const char *org, const char *app)
-{
-    // Dreamcast has no writable persistent storage
-    SDL_Unsupported();
-    return NULL;
-}
-
-char *SDL_SYS_GetUserFolder(SDL_Folder folder)
-{
-    SDL_Unsupported();
-    return NULL;
-}
-
-char *SDL_SYS_GetCurrentDirectory(void)
-{
-    SDL_Unsupported();
-    return NULL;
-}
+#include <SDL3/SDL_audio.h>
+// #include "SDL_mutex.h"
+#include <stdint.h>  // For uint32_t
+#include <dc/sound/stream.h>
 
 
-#endif /* SDL_FILESYSTEM_DREAMCAST */
+struct SDL_PrivateAudioData {
+    snd_stream_hnd_t stream_handle;
+    SDL_AtomicInt active_buffer; 
+    SDL_AtomicInt buffer_ready;
+    int buffer_size;
+    Uint8 *mixbuf[2];
+    int playing;
+    bool direct_buffer_access;
+    SDL_Mutex *lock;
+};
+
+
+#endif /* SDL_dreamcastaudio_h_ */
+/* vi: set ts=4 sw=4 expandtab: */

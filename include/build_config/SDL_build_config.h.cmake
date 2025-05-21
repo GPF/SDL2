@@ -316,6 +316,7 @@
 #cmakedefine SDL_HAPTIC_IOKIT 1
 #cmakedefine SDL_HAPTIC_DINPUT 1
 #cmakedefine SDL_HAPTIC_ANDROID 1
+#cmakedefine SDL_HAPTIC_DREAMCAST 1
 
 #cmakedefine SDL_HAPTIC_PRIVATE 1
 

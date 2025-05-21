@@ -411,8 +411,8 @@ static bool convert_format(Uint32 pixel_format, GLint *internalFormat, GLenum *f
     switch (pixel_format) {
 #ifdef SDL_PLATFORM_DREAMCAST
     case SDL_PIXELFORMAT_XRGB8888:
-        *internalFormat = GL_RGB;
-        *format = GL_RGB;
+        *internalFormat = GL_RGBA;
+        *format = GL_RGBA;
         *type = GL_UNSIGNED_BYTE;  // Dreamcast-specific handling for RGB888
         break;
     case SDL_PIXELFORMAT_RGB565:

@@ -2965,6 +2965,12 @@ elseif(DREAMCAST)
       set(HAVE_SDL_JOYSTICK TRUE)
   endif()
   
+  if(SDL_HAPTIC)
+    set(SDL_HAPTIC_DREAMCAST 1)
+    sdl_glob_sources("${SDL3_SOURCE_DIR}/src/haptic/dreamcast/*.c")
+    set(HAVE_SDL_HAPTIC TRUE)
+  endif()
+
   if(SDL_AUDIO)
     set(HAVE_DUMMYAUDIO FALSE)
     set(HAVE_DISKAUDIO FALSE)

@@ -213,7 +213,7 @@ static bool DREAMCAST_VideoInit(SDL_VideoDevice *_this) {
     }
 // #endif
 
-    SDL_Log("SDL3 Dreamcast video initialized: %dx%d PM_RGB888", width, height);
+    SDL_Log("SDL3 Dreamcast video initialized: %dx%d PM_RGB555", width, height);
     return true;
 }
 

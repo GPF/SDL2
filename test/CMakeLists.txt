@@ -152,7 +152,7 @@ macro(add_sdl_test_executable TARGET)
         set_property(TARGET ${TARGET} PROPERTY SDL_NONINTERACTIVE_TIMEOUT "${AST_NONINTERACTIVE_TIMEOUT}")
     endif()
     if(AST_NEEDS_RESOURCES)
-        if(PSP OR PS2 OR N3DS OR DREAMCAST)
+        if(PSP OR PS2 OR N3DS)
             add_custom_command(TARGET ${TARGET} POST_BUILD
                 COMMAND ${CMAKE_COMMAND} ARGS -E make_directory $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET}
                 COMMAND ${CMAKE_COMMAND} ARGS -E copy_if_different ${RESOURCE_FILES} $<TARGET_FILE_DIR:${TARGET}>/sdl-${TARGET})
@@ -527,36 +527,77 @@ if(N3DS)
 endif()
 
 if(DREAMCAST)
+    string(REPLACE "-flto=auto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE "-flto=auto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    add_compile_options(-fno-lto)
+
+    set(DREAMCAST_VALID_APPS
+        testsprite
+        testspriteminimal
+        testviewport
+        testshader
+        testrendercopyex
+        testrendertarget
+        testscale
+        loopwave
+        testaudio
+        testmultiaudio
+        teststreaming
+        testoverlay
+        testiconv
+        testyuv
+        testime
+    )
+
     foreach(APP ${SDL_TEST_EXECUTABLES})
-        # Add Dreamcast-specific link libraries
-        target_link_libraries(${APP} PRIVATE SDL3 GL pthread)
-        get_target_property(NEEDS_RESOURCES ${APP} AST_NEEDS_RESOURCES)
-        get_target_property(RESOURCE_FILES   ${APP} RESOURCE_FILES)
-        get_target_property(TARGET_BINARY_DIR ${APP} BINARY_DIR)
-        set(ROMDISK_DIR "${TARGET_BINARY_DIR}/romdisk_${APP}")
-        set(OUTPUT_DIR  "${TARGET_BINARY_DIR}/sdl-${APP}")
+        target_link_libraries(${APP} PRIVATE GL pthread)
+    endforeach()
 
-        file(MAKE_DIRECTORY "${OUTPUT_DIR}")
+    foreach(APP IN LISTS DREAMCAST_VALID_APPS)
+        set(APP_RESOURCE_FILES "")
 
-        if(NEEDS_RESOURCES AND RESOURCE_FILES)
-            file(MAKE_DIRECTORY "${ROMDISK_DIR}")
-
-            foreach(RESOURCE_FILE ${RESOURCE_FILES})
-                file(COPY "${RESOURCE_FILE}" DESTINATION "${ROMDISK_DIR}")
-            endforeach()
-
-            # Attach ROM disk to Dreamcast ELF
-            kos_add_romdisk(${APP} "${ROMDISK_DIR}" ${APP})
+        if(${APP} STREQUAL "testspriteminimal" OR ${APP} STREQUAL "testsprite" OR ${APP} STREQUAL "testviewport" OR ${APP} STREQUAL "testshader")
+            set(APP_RESOURCE_FILES "icon.bmp")
+        elseif(${APP} STREQUAL "testrendercopyex" OR ${APP} STREQUAL "testrendertarget" OR ${APP} STREQUAL "testscale")
+            set(APP_RESOURCE_FILES "sample.bmp" "icon.bmp")
+        elseif(${APP} STREQUAL "loopwave" OR ${APP} STREQUAL "testmultiaudio" )
+            set(APP_RESOURCE_FILES "sample.wav" )        
+        elseif(${APP} STREQUAL "teststreaming" OR ${APP} STREQUAL "testoverlay")
+            set(APP_RESOURCE_FILES "moose.dat")
+        elseif(${APP} STREQUAL "testiconv")
+            set(APP_RESOURCE_FILES "utf8.txt")
+        elseif(${APP} STREQUAL "testyuv")
+            set(APP_RESOURCE_FILES "testyuv.bmp" "icon.bmp")
+        elseif(${APP} STREQUAL "testaudio")
+            set(APP_RESOURCE_FILES "physaudiodev.bmp" "logaudiodev.bmp" "audiofile.bmp" "trashcan.bmp" "soundboard.bmp" "soundboard_levels.bmp" "sample.wav")
+        elseif(${APP} STREQUAL "testime")
+            set(APP_RESOURCE_FILES "unifont-15.1.05.hex" "icon.bmp")
         endif()
 
-        # Copy ELF into test output dir (like PSP/N3DS do)
+        if(APP_RESOURCE_FILES)
+            set(KOS_ROMDISK_DIR "${CMAKE_CURRENT_BINARY_DIR}/romdisk_${APP}")
+            file(MAKE_DIRECTORY "${KOS_ROMDISK_DIR}")
+
+            foreach(RESOURCE_FILE ${APP_RESOURCE_FILES})
+                set(ABS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${RESOURCE_FILE}")
+                if(EXISTS "${ABS_PATH}")
+                    file(COPY "${ABS_PATH}" DESTINATION "${KOS_ROMDISK_DIR}")
+                else()
+                    message(WARNING "Missing resource file for ${APP}: ${RESOURCE_FILE}")
+                endif()
+            endforeach()
+
+            kos_add_romdisk(${APP} "${KOS_ROMDISK_DIR}" ${APP})
+        endif()
+
+        set(OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/sdl-${APP}")
+        file(MAKE_DIRECTORY "${OUTPUT_DIR}")
         add_custom_command(TARGET ${APP} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-                "$<TARGET_FILE:${APP}>"
-                "${OUTPUT_DIR}/${APP}.elf"
+            COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:${APP}>" "${OUTPUT_DIR}/${APP}.elf"
         )
     endforeach()
 endif()
+
 
 
 if(RISCOS)

@@ -99,22 +99,24 @@ static int DREAMCAST_Available(void)
 
 }
 
-int dreamcast_text_input_enabled = false;
+// int dreamcast_text_input_enabled = false;
 static bool DREAMCAST_StartTextInput(SDL_VideoDevice *device, SDL_Window *window, SDL_PropertiesID props)
 {
-    if (!dreamcast_text_input_enabled) {
-        dreamcast_text_input_enabled = true;
-        // SDL_Log("DREAMCAST_StartTextInput: enabled");
-    }
+    // if (!dreamcast_text_input_enabled) {
+    //     dreamcast_text_input_enabled = true;
+    //     // SDL_Log("DREAMCAST_StartTextInput: enabled");
+    // }
+    SDL_Log("Text input started for window: %p", (void*)window);
     return true;
 }
 
 static bool DREAMCAST_StopTextInput(SDL_VideoDevice *device, SDL_Window *window)
 {
-    if (dreamcast_text_input_enabled) {
-        dreamcast_text_input_enabled = false;
-        // SDL_Log("DREAMCAST_StopTextInput: disabled");
-    }
+    // if (dreamcast_text_input_enabled) {
+    //     dreamcast_text_input_enabled = false;
+    //     // SDL_Log("DREAMCAST_StopTextInput: disabled");
+    // }
+    SDL_Log("Text input stopped for window: %p", (void*)window);
     return true;
 }
 

@@ -147,7 +147,7 @@ static SDL_KeyboardID get_dreamcast_keyboard_id(void) {
 
     return keyboard_id;
 }
-extern int dreamcast_text_input_enabled;
+// extern int dreamcast_text_input_enabled;
 static void keyboard_update(void) {
     // printf("DREAMCAST_PumpEvents() keyboard_update() called\n");
     static kbd_state_t old_state;
@@ -184,9 +184,10 @@ static void keyboard_update(void) {
             if (key) {
                 bool pressed = state->matrix[i] != 0;
                 SDL_SendKeyboardKey(SDL_GetTicksNS(), keyboard_id, mods_now.raw, key, pressed);
-
+                                    SDL_Log("Key pressed: %d", key);
                 // Optional: handle SDL_TEXTINPUT if needed
-                if (pressed && dreamcast_text_input_enabled) {
+                if (SDL_TextInputActive(NULL)) {
+                    SDL_Log("Text input active");
                     char text[2] = {0};
                     bool shift = mods_now.lshift || mods_now.rshift;
 

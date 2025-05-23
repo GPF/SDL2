@@ -33,8 +33,8 @@ int DREAMCAST_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window)
 {
     SDL_WindowData *dreamcast_window = (SDL_WindowData *)SDL_calloc(1, sizeof(SDL_WindowData));
 
-    if (dreamcast_window) {
-        return SDL_SetError("Dreamcast only supports one window");
+    if (!dreamcast_window) {
+        return SDL_OutOfMemory();
     }
     window->internal  = dreamcast_window;
 

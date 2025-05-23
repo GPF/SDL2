@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    SDL_Window *window = SDL_CreateWindow("Dreamcast SDL3 Viewer", 320, 240, SDL_WINDOW_OPENGL);
+    SDL_Window *window = SDL_CreateWindow("Dreamcast SDL3 Viewer", 640, 480, SDL_WINDOW_OPENGL);
     if (!window) {
         SDL_Log("Failed to create window: %s", SDL_GetError());
         SDL_Quit();
@@ -33,9 +33,9 @@ int main(int argc, char *argv[]) {
     }
 
     // Optional: Convert to preferred format if needed
-    SDL_Surface *converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_ARGB1555);
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, converted);
-    SDL_DestroySurface(surface);
+    // SDL_Surface *converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGB565);
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+
 
     if (!texture) {
         SDL_Log("Failed to create texture: %s", SDL_GetError());
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         SDL_RenderPresent(renderer);
     }
 
-    SDL_DestroySurface(converted);
+    SDL_DestroySurface(surface);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

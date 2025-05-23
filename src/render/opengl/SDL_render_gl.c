@@ -488,18 +488,71 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
         !renderdata->GL_EXT_framebuffer_object_supported) {
         return SDL_SetError("Render targets not supported by OpenGL");
     }
+#ifdef SDL_PLATFORM_DREAMCAST
+    SDL_Log("before texture->format = %s", SDL_GetPixelFormatName(texture->format));
+    if (texture->access != SDL_TEXTUREACCESS_STREAMING){
+        if (texture->format == SDL_PIXELFORMAT_RGB565) {
+            SDL_Log("Converting RGB565 to ARGB1555");
+            uint16_t *pixels = (uint16_t *)texture->pixels;
+            int count = texture->w * texture->h;
 
+            for (int i = 0; i < count; ++i) {
+                uint16_t rgb = pixels[i];
+                uint8_t r = (rgb >> 11) & 0x1F;
+                uint8_t g = (rgb >> 5) & 0x3F;
+                uint8_t b = rgb & 0x1F;
+                g >>= 1;
+
+                pixels[i] = (1 << 15) | (r << 10) | (g << 5) | b;
+            }
+
+            texture->format = SDL_PIXELFORMAT_ARGB1555;
+
+        } else if (texture->format == SDL_PIXELFORMAT_XRGB8888 ||
+                texture->format == SDL_PIXELFORMAT_ARGB8888 ||
+                texture->format == SDL_PIXELFORMAT_ARGB4444) {
+            const char *fromFmt = SDL_GetPixelFormatName(texture->format);
+            SDL_Log("Converting %s to ARGB1555", fromFmt);
+
+            uint32_t *src = (uint32_t *)texture->pixels;
+            uint16_t *dst = SDL_malloc(sizeof(uint16_t) * texture->w * texture->h);
+            int count = texture->w * texture->h;
+
+            for (int i = 0; i < count; ++i) {
+                uint32_t pixel = src[i];
+
+                uint8_t a = (pixel >> 24) & 0xFF;
+                uint8_t r = (pixel >> 16) & 0xFF;
+                uint8_t g = (pixel >> 8) & 0xFF;
+                uint8_t b = pixel & 0xFF;
+
+                r >>= 3;
+                g >>= 3;
+                b >>= 3;
+
+                uint8_t alpha_bit = (a >= 128) ? 1 : 0;
+                dst[i] = (alpha_bit << 15) | (r << 10) | (g << 5) | b;
+            }
+
+            SDL_free(texture->pixels);  // Only if this buffer was allocated manually
+            texture->pixels = dst;
+            texture->format = SDL_PIXELFORMAT_ARGB1555;
+        }
+    }
+#endif
 
     if (!convert_format(texture->format, &internalFormat, &format, &type)) {
         return SDL_SetError("Texture format %s not supported by OpenGL",
                             SDL_GetPixelFormatName(texture->format));
     }
+#ifdef SDL_PLATFORM_DREAMCAST    
     SDL_Log("texture->format = %s", SDL_GetPixelFormatName(texture->format));
     SDL_Log("internalFormat = %d", internalFormat);
     SDL_Log("format = %d", format);
     SDL_Log("type = %d", type);
     SDL_Log("texture-access = %d", texture->access);
-
+#endif
+    
     data = (GL_TextureData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
         return false;
@@ -1907,7 +1960,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
 #ifdef SDL_PLATFORM_MACOS
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_UYVY);
 #endif
-    SDL_Log("here we are");
+
 #ifndef SDL_PLATFORM_DREAMCAST
     if (SDL_GL_ExtensionSupported("GL_EXT_framebuffer_object")) {
         data->GL_EXT_framebuffer_object_supported = true;
@@ -1926,7 +1979,7 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
         goto error;
     }
 #endif
-       SDL_Log("here we are2");
+
     // Set up parameters for rendering
     data->glMatrixMode(GL_MODELVIEW);
     data->glLoadIdentity();

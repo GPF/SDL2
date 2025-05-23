@@ -195,7 +195,7 @@ static bool DREAMCAST_VideoInit(SDL_VideoDevice *_this) {
     }
 
     SDL_zero(mode);
-    mode.format = SDL_PIXELFORMAT_XRGB8888;
+    mode.format = SDL_PIXELFORMAT_ARGB1555;
     mode.w = width;
     mode.h = height;
     mode.pixel_density = 1.0f;
@@ -205,15 +205,15 @@ static bool DREAMCAST_VideoInit(SDL_VideoDevice *_this) {
         return false;
     }
 
-// #ifndef SDL_VIDEO_OPENGL
+#ifndef SDL_VIDEO_OPENGL
     if (!video_mode_hint) {
         SDL_Log("No video mode hint set, defaulting to SDL_DC_DIRECT_VIDEO with no double buffering");
         SDL_SetHint(SDL_HINT_DC_VIDEO_MODE, "SDL_DC_DIRECT_VIDEO");
         SDL_SetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER, "0");
     }
-// #endif
+#endif
 
-    SDL_Log("SDL3 Dreamcast video initialized: %dx%d PM_RGB555", width, height);
+    SDL_Log("SDL3 Dreamcast video initialized: %dx%d ", width, height);
     return true;
 }
 
@@ -306,7 +306,7 @@ static bool DREAMCAST_SetDisplayMode(SDL_VideoDevice *_this, SDL_VideoDisplay *d
 
     // Ensure mode->format is set
     if (mode->format == 0) {
-        mode->format = SDL_PIXELFORMAT_XRGB8888;  // Default pixel format
+        mode->format = SDL_PIXELFORMAT_ARGB1555;  // Default pixel format
     }
 
     // Map SDL pixel format to Dreamcast pixel mode

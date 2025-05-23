@@ -489,10 +489,16 @@ static bool GL_CreateTexture(SDL_Renderer *renderer, SDL_Texture *texture, SDL_P
         return SDL_SetError("Render targets not supported by OpenGL");
     }
 
+
     if (!convert_format(texture->format, &internalFormat, &format, &type)) {
         return SDL_SetError("Texture format %s not supported by OpenGL",
                             SDL_GetPixelFormatName(texture->format));
     }
+    SDL_Log("texture->format = %s", SDL_GetPixelFormatName(texture->format));
+    SDL_Log("internalFormat = %d", internalFormat);
+    SDL_Log("format = %d", format);
+    SDL_Log("type = %d", type);
+    SDL_Log("texture-access = %d", texture->access);
 
     data = (GL_TextureData *)SDL_calloc(1, sizeof(*data));
     if (!data) {
@@ -1781,10 +1787,19 @@ static bool GL_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, SDL_Pr
     renderer->window = window;
 
     renderer->name = GL_RenderDriver.name;
+#ifdef SDL_PLATFORM_DREAMCAST
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_RGB565);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB1555);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB4444);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XRGB8888);
+    SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB8888);
+#else
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ARGB8888);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_ABGR8888);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XRGB8888);
     SDL_AddSupportedTextureFormat(renderer, SDL_PIXELFORMAT_XBGR8888);
+#endif
+
 
     data->context = SDL_GL_CreateContext(window);
     if (!data->context) {

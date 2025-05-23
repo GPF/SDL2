@@ -110,7 +110,7 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     if (!ticks) {
         return SDL_InvalidParamError("ticks");
     }
-#if defined(HAVE_CLOCK_GETTIME) && !defined(SDL_PLATFORM_DREAMCAST)
+#if defined(HAVE_CLOCK_GETTIME)
     struct timespec tp;
 
     if (clock_gettime(CLOCK_REALTIME, &tp) == 0) {
@@ -120,15 +120,6 @@ bool SDL_GetCurrentTime(SDL_Time *ticks)
     }
 
     SDL_SetError("Failed to retrieve system time (%i)", errno);
-#elif defined(SDL_PLATFORM_DREAMCAST)
-    struct timeval tv;
-    SDL_zero(tv);
-    if (gettimeofday(&tv, NULL) == 0) {
-        *ticks = SDL_SECONDS_TO_NS(tv.tv_sec) + SDL_US_TO_NS(tv.tv_usec);
-        return true;
-    }
-
-    SDL_SetError("Dreamcast gettimeofday() failed");
 #elif defined(SDL_PLATFORM_APPLE)
     clock_serv_t cclock;
     int ret = host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);

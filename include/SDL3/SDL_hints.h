@@ -4413,14 +4413,19 @@ extern "C" {
 /**
  * \brief Hint that controls the video rendering mode for Dreamcast.
  *
- * This hint allows the selection of video rendering modes specific to Dreamcast, 
+ * This hint allows the selection of 2D video rendering modes specific to Dreamcast, 
  * enabling either direct framebuffer access (no DMA) or DMA-driven video rendering.
  * This choice can impact the performance and method of updating the display.
  *
  * - "SDL_DC_DIRECT_VIDEO": Uses direct framebuffer access without DMA.
  * - "SDL_DC_DMA_VIDEO": Uses DMA for transferring video data (default).
+ * - "SDL_DC_TEXTURED_VIDEO": Uses textured pvr video rendering.
+ *    SDL_HINT_DC_SCREEN_WIDTH_TEXTURED and SDL_HINT_DC_SCREEN_HEIGHT_TEXTURED
+ *    must be set to the intended screen width and height rendered into the texture for the SDL_DC_TEXTURED_VIDEO mode.
  */
 #define SDL_HINT_DC_VIDEO_MODE "SDL_DC_VIDEO_MODE"
+#define SDL_HINT_DC_SCREEN_WIDTH_TEXTURED  "SDL_DC_SCREEN_WIDTH_TEXTURED"
+#define SDL_HINT_DC_SCREEN_HEIGHT_TEXTURED "SDL_DC_SCREEN_HEIGHT_TEXTURED"
 
 /**
  * An enumeration of hint priorities.

@@ -29,7 +29,7 @@ struct SDL_WindowData
     SDL_Window *sdl_window;
 };
 
-extern int DREAMCAST_CreateWindow(SDL_VideoDevice *_this, SDL_Window * window);
+extern bool DREAMCAST_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_PropertiesID props);
 extern void DREAMCAST_SetWindowSize(SDL_VideoDevice *_this, SDL_Window *window);
 extern void DREAMCAST_DestroyWindow(SDL_VideoDevice *_this, SDL_Window * window);
 

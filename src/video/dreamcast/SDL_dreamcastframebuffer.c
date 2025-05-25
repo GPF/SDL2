@@ -25,6 +25,7 @@
 #include "../SDL_sysvideo.h"
 #include "SDL_dreamcastframebuffer_c.h"
 #include <SDL3/SDL_hints.h>
+#include "video/SDL_sysvideo.h"
 #include "../../SDL_properties_c.h"
 #include "../../SDL_utils_c.h"
 #include "../../events/SDL_mouse_c.h"
@@ -48,7 +49,7 @@ static float sdl_dc_u1=0.3f;
 static float sdl_dc_u2=0.3f;
 static float sdl_dc_v1=0.9f;
 static float sdl_dc_v2=0.6f;
-
+extern unsigned int __sdl_dc_mouse_shift;
 SDL_Surface *cursorSurface = NULL;
 /* XPM */
 static const char *arrow[] = {
@@ -208,244 +209,192 @@ static void sdl_dc_blit_textured(void)
 #undef DHE
 }
 
+static unsigned short *sdl_dc_buf[2] = { NULL, NULL };
+static int sdl_dc_buf_index = 0;
 bool SDL_DREAMCAST_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch)
 {
     SDL_Surface *surface = NULL;
-    SDL_SetSurfaceProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, surface);
     int w, h;
     Uint32 surface_format = *format;
     int target_bpp;
+    size_t surface_size = 0;
+    size_t expected_pitch = 0;
     const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
     const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
 
-    // Destroy old surface if exists
-    // SDL_DREAMCAST_DestroyWindowFramebuffer(_this, window);
-
     SDL_GetWindowSizeInPixels(window, &w, &h);
-
     const SDL_DisplayMode *mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
     if (!mode) {
         SDL_SetError("Failed to get current display mode");
         return false;
     }
 
-
-    // Fallback or sanitize the requested format
     if (surface_format != SDL_PIXELFORMAT_RGB565 &&
         surface_format != SDL_PIXELFORMAT_ARGB1555 &&
         surface_format != SDL_PIXELFORMAT_XRGB8888 &&
         surface_format != SDL_PIXELFORMAT_ARGB8888) {
-        surface_format = SDL_PIXELFORMAT_RGB565;
+        surface_format = SDL_PIXELFORMAT_ARGB1555;
     }
 
-    if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
-        target_bpp = 16;
-        surface_format = SDL_PIXELFORMAT_RGB565;
-        sdl_dc_width = w;
-        sdl_dc_height = h;
-        w = SDL_powerof2(w);
-        h = SDL_powerof2(h);
-    } else {
+    // if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
+    //     target_bpp = 16;
+    //     surface_format = SDL_PIXELFORMAT_RGB565;
+
+    //     const char *w_hint = SDL_GetHint(SDL_HINT_DC_SCREEN_WIDTH_TEXTURED);
+    //     const char *h_hint = SDL_GetHint(SDL_HINT_DC_SCREEN_HEIGHT_TEXTURED);
+    //     int logical_w = w_hint ? SDL_atoi(w_hint) : 640;
+    //     int logical_h = h_hint ? SDL_atoi(h_hint) : 480;
+
+    //     sdl_dc_width = logical_w;
+    //     sdl_dc_height = logical_h;
+
+    //     sdl_dc_wtex = 1 << (32 - __builtin_clz(logical_w - 1));
+    //     sdl_dc_htex = 1 << (32 - __builtin_clz(logical_h - 1));
+    //     __sdl_dc_mouse_shift = 640.0f / (float)sdl_dc_width;
+
+    //     // Calculate pitch and size
+    //     if (!SDL_CalculateSurfaceSize(surface_format, sdl_dc_wtex, sdl_dc_htex, &surface_size, &expected_pitch, false)) {
+    //         return SDL_SetError("Surface size calc failed");
+    //     }
+
+    //     surface = SDL_CreateSurface(sdl_dc_wtex, sdl_dc_htex, surface_format);
+    //     if (!surface) {
+    //         return SDL_SetError("Failed to create surface: %s", SDL_GetError());
+    //     }
+    //     surface->pitch = expected_pitch;
+    //     SDL_SetWindowSize(window, sdl_dc_wtex, sdl_dc_htex);
+
+    // } 
+    // else 
+    {
         target_bpp = SDL_BITSPERPIXEL(surface_format);
         if (target_bpp == 24) target_bpp = 32;
+
+        if (!SDL_CalculateSurfaceSize(surface_format, w, h, &surface_size, &expected_pitch, false)) {
+            return SDL_SetError("Surface size calc failed");
+        }
+
+        surface = SDL_CreateSurface(w, h, surface_format);
+        if (!surface) {
+            return SDL_SetError("Failed to create surface: %s", SDL_GetError());
+        }
+        surface->pitch = expected_pitch;
     }
 
-    int calculated_pitch = w * (target_bpp / 8);
+    if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0) {
+        if (!sdl_dc_pvr_inited) {
+            pvr_dma_init();
+            sdl_dc_pvr_inited = 1;
+        }
 
-    surface = SDL_CreateSurface(w, h, surface_format);
-    if (!surface) {
-        return SDL_SetError("Failed to create surface: %s", SDL_GetError());
-    }
-
-    if (!sdl_dc_pvr_inited && video_mode_hint && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
-        surface->pixels = (void *)vram_l;
-        SDL_Log("Inited SDL_DC_DIRECT_VIDEO");
-    }
-
-    if (!sdl_dc_pvr_inited && video_mode_hint && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0) {
-        pvr_dma_init();
-        sdl_dc_pvr_inited = 1;
-        SDL_Log("Inited SDL_DC_DMA_VIDEO");
-        sdl_dc_dblsize = w * h * (target_bpp >> 3);
-        sdl_dc_dblfreed = calloc(128 + sdl_dc_dblsize, 1);
-        sdl_dc_dblmem = (unsigned short *)(((((unsigned)sdl_dc_dblfreed) + 64) / 64) * 64);
+        sdl_dc_dblfreed = calloc(128 + surface_size, 1);
+        sdl_dc_dblmem = (unsigned short *)(((((uintptr_t)sdl_dc_dblfreed) + 64) / 64) * 64);
         surface->pixels = (void *)sdl_dc_dblmem;
-    }
+        __sdl_dc_mouse_shift = 1.0f;
 
-    if (!sdl_dc_textured && video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
-        pvr_init_defaults();
-        pvr_dma_init();
-        sdl_dc_pvr_inited = 1;
-        sdl_dc_textured = 1;
-        sdl_dc_bpp = SDL_BITSPERPIXEL(surface_format);
-        sdl_dc_wtex = w;
-        sdl_dc_htex = h;
-        sdl_dc_memtex = pvr_mem_malloc(sdl_dc_wtex * sdl_dc_htex * 2);
+    } else if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
+        if (!sdl_dc_pvr_inited) {
+            sdl_dc_pvr_inited = 1;
+        }
 
-        sdl_dc_u1 = 0.0f;
-        sdl_dc_v1 = 0.0f;
-        sdl_dc_u2 = (float)sdl_dc_width / (float)sdl_dc_wtex;
-        sdl_dc_v2 = (float)sdl_dc_height / (float)sdl_dc_htex;
+        __sdl_dc_mouse_shift = 640.0f / (float)w;
 
         if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, true)) {
-            SDL_Log("Inited SDL_DC_TEXTURED_VIDEO with double buffer");
-            sdl_dc_memfreed = calloc(64 + sdl_dc_wtex * sdl_dc_htex * (sdl_dc_bpp >> 3), 1);
-            sdl_dc_buftex = (unsigned short *)(((((unsigned)sdl_dc_memfreed) + 32) / 32) * 32);
-            surface->pixels = (void *)sdl_dc_buftex;
+            sdl_dc_dblfreed = calloc(2 * surface_size + 128, 1);
+            sdl_dc_buf[0] = (unsigned short *)((((uintptr_t)sdl_dc_dblfreed) + 64) & ~63);
+            surface->pixels = (void *)sdl_dc_buf[0];
+            sdl_dc_buf_index = 0;
         } else {
-            SDL_Log("Inited SDL_DC_TEXTURED_VIDEO without double buffer");
-            sdl_dc_buftex = 0;
-            surface->pixels = sdl_dc_memtex;
+            surface->pixels = (void *)vram_l;
         }
     }
 
-    // if (!SDL_GetWindowData(window, "cursor_initialized")) {
-    //     cursorSurface = init_system_cursor(arrow);
-    //     SDL_SetWindowData(window, "cursor_initialized", cursorSurface);
-    // }
+    // if (sdl_dc_pvr_inited != 1 && video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
+    //     pvr_init_defaults();
+    //     pvr_dma_init();
+    //     sdl_dc_pvr_inited = 1;
+    //     sdl_dc_textured = 1;
+    //     sdl_dc_bpp = SDL_BITSPERPIXEL(surface_format);
 
-    // SDL_SetWindowData(window, DREAMCAST_SURFACE, surface);
-    *format = surface_format;
-    *pixels = surface->pixels;
-    *pitch = calculated_pitch;
+    //     sdl_dc_memtex = pvr_mem_malloc(sdl_dc_wtex * sdl_dc_htex * 2);
+    //     sdl_dc_u1 = 0.0f;
+    //     sdl_dc_v1 = 0.0f;
+    //     sdl_dc_u2 = (float)sdl_dc_width / (float)sdl_dc_wtex;
+    //     sdl_dc_v2 = (float)sdl_dc_height / (float)sdl_dc_htex;
 
-    SDL_Log("SDL_DREAMCAST_CreateWindowFramebuffer: %d x %d, %d bpp", w, h, target_bpp);
-    return true;
-}
-
-int fb=0;
-bool SDL_DREAMCAST_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
-{
-    SDL_Surface *surface;
-    Uint32 *dst;
-    int w, h, pitch, i;
-    Uint32 *src_row;
-    const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
-    bool double_buffer_hint = SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, true);
-    bool vsync_hint = SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, true);
-    // int mouse_x, mouse_y;
-    surface = (SDL_Surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, NULL);
-    if (!surface) {
-        return SDL_SetError("Couldn't find framebuffer surface for window");
-    }
-
-    // Get the SDL_Mouse structure
-    // SDL_Mouse *mouse = SDL_GetMouse();
-
-    // surface = (SDL_Surface *)SDL_GetWindowData(window, DREAMCAST_SURFACE);
-    // if (!surface) {
-    //     return SDL_SetError("Couldn't find framebuffer surface for window");
-    // }
-
-    // Retrieve dimensions and pitch of the SDL surface
-    w = surface->w;
-    h = surface->h;
-    pitch = surface->pitch;
-
-
-    // Check if the cursor is enabled
-    // Retrieve mouse position and draw the cursor at the appropriate position
-
-
-    // // Check if the cursor is enabled
-    // if (mouse->cursor_shown) {
-
-    //     SDL_GetMouseState(&mouse_x, &mouse_y); // This could be mapped to controller input        
-    //     // Define the cursor rectangle
-    //     SDL_Rect cursorRect = { mouse_x, mouse_y, 32, 32 }; // Adjust as necessary
-
-    //     // Render the custom cursor only if it is enabled
-    //     if (SDL_GetWindowData(window, "cursor_initialized") != NULL) {
-    //         // Create a surface for the cursor (assuming you have cursor pixel data)
-    //         SDL_Surface *cursor_surface = SDL_CreateRGBSurfaceWithFormatFrom(
-    //             cursor_surface->pixels,  // Replace with your cursor pixel data
-    //             32,                      // Width
-    //             32,                      // Height
-    //             32,                      // Depth (bits per pixel)
-    //             32 * sizeof(Uint32),     // Pitch (bytes per row)
-    //             SDL_PIXELFORMAT_ARGB8888 // Pixel format
-    //         );
-
-    //         if (cursor_surface) {
-    //             // Blit the cursor surface onto the main framebuffer at the correct location
-    //             SDL_BlitSurface(cursor_surface, NULL, surface, &cursorRect);
-    //             SDL_FreeSurface(cursor_surface);
-    //         }
+    //     if (double_buffer_hint && SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, true)) {
+    //         sdl_dc_memfreed = calloc(64 + surface_size, 1);
+    //         sdl_dc_buftex = (unsigned short *)((((uintptr_t)sdl_dc_memfreed + 32) / 32) * 32);
+    //         surface->pixels = (void *)sdl_dc_buftex;
+    //     } else {
+    //         sdl_dc_buftex = NULL;
+    //         surface->pixels = sdl_dc_memtex;
     //     }
     // }
 
+    *format = surface_format;
+    *pixels = surface->pixels;
+    *pitch  = surface->pitch;
 
-if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
-    if (double_buffer_hint) {
-    // Assuming vram_l points to the start of the framebuffer
-    fb= !fb;
-    vid_set_fb(fb);
-    }
-    dst = (Uint32 *)vram_l;
+    SDL_SetSurfaceProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, surface);
+    SDL_Log("SDL_DREAMCAST_CreateWindowFramebuffer: Done. Size %d x %d, pitch %d", surface->w, surface->h, *pitch);
+    return true;
 }
-    src_row = (Uint32 *)surface->pixels;
 
-    // Update the entire framebuffer in one go if no specific rectangles are provided
-    if (numrects == 1) {
-    if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
-        sdl_dc_blit_textured();
-    }
-    else if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0) {
-        //   SDL_Log("Using dma video mode");    
-        // // Ensure the data cache is flushed before DMA transfer
-        dcache_flush_range((uintptr_t)surface->pixels, sdl_dc_dblsize);
-        while (!pvr_dma_ready());  // Wait for any prior DMA transfer to complete
-        // Perform the DMA transfer from surface->pixels to vram_l
-        pvr_dma_transfer((void*)surface->pixels, (uintptr_t)vram_l, sdl_dc_dblsize, PVR_DMA_VRAM32, -1, NULL, NULL); 
-    }
-    else{
-        // SDL_Log("Using direct video mode");        
-        sq_cpy(vram_l, surface->pixels, h * pitch);  // Copies the entire framebuffer at once 
-    }} else {
-        SDL_Log("numrects: %d",numrects);       
-        // Update only specified rectangles if provided
-        for (i = 0; i < numrects; ++i) {
-            const SDL_Rect *rect = &rects[i];
-            for (int y = rect->y; y < rect->y + rect->h; ++y) {
-                SDL_memcpy(dst + ((y * (pitch / sizeof(Uint32))) + rect->x),
-                    src_row + ((y * (pitch / sizeof(Uint32))) + rect->x),
-                    rect->w * sizeof(Uint32));
-            }
+
+bool SDL_DREAMCAST_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
+{
+    SDL_Surface *surface = (SDL_Surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, NULL);
+    if (!surface) return SDL_SetError("Couldn't find framebuffer surface for window");
+
+    const char *video_mode_hint = SDL_GetHint(SDL_HINT_DC_VIDEO_MODE);
+    bool double_buffer = SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, true);
+    bool vsync_enabled = SDL_GetHintBoolean(SDL_HINT_RENDER_VSYNC, true);
+
+    int w = surface->w;
+    int h = surface->h;
+    int pitch = surface->pitch;
+
+    // if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") == 0) {
+    //     if (numrects == 1) {
+    //         sdl_dc_blit_textured();
+    //     }
+    // } else 
+    if (strcmp(video_mode_hint, "SDL_DC_DMA_VIDEO") == 0) {
+        if (numrects == 1) {
+            dcache_flush_range((uintptr_t)sdl_dc_dblmem, sdl_dc_dblsize);
+            while (!pvr_dma_ready());
+            pvr_dma_transfer((void *)sdl_dc_dblmem, (uintptr_t)vram_l, sdl_dc_dblsize, PVR_DMA_VRAM32, -1, NULL, NULL);
+        }
+    } else if (strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
+        if (double_buffer) {
+            sq_cpy(vram_l, sdl_dc_buf[sdl_dc_buf_index], h * pitch);
+            // vid_waitvbl();
+            // sdl_dc_buf_index ^= 1;
+            surface->pixels = sdl_dc_buf[sdl_dc_buf_index];
+        } else {
+            sq_cpy(vram_l, surface->pixels, h * pitch);
+            // vid_waitvbl();
         }
     }
 
-    if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") != 0) {
-        // Check SDL hints before synchronization
-            if (vsync_hint) {
-                vid_waitvbl();
-                // SDL_Log("SDL_HINT_RENDER_VSYNC");
-            }
-            if (double_buffer_hint) {
-                if (video_mode_hint != NULL && strcmp(video_mode_hint, "SDL_DC_DIRECT_VIDEO") == 0) {
-                    // SDL_Log("SDL_HINT_VIDEO_DOUBLE_BUFFER");
-                vid_flip(fb);
-                fb= !fb;
-                }
-                
-            }
-    // fb = !fb;
-    }
+    // if (video_mode_hint && strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO") != 0 && vsync_enabled) {
+    //     vid_waitvbl();
+    // }
 
     return true;
 }
 
+
 void SDL_DREAMCAST_DestroyWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window)
 {
-    SDL_Surface *surface;
-
-    // Retrieve and clear the framebuffer surface data associated with the window
-    surface = (SDL_Surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, NULL);
+    SDL_Surface *surface = (SDL_Surface *)SDL_GetPointerProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE, NULL);
     if (surface) {
         SDL_DestroySurface(surface);
         SDL_ClearProperty(SDL_GetWindowProperties(window), DREAMCAST_SURFACE);
     }
 
-    // Free any additional allocated memory for DMA and textured modes
+    // Only free DMA-related allocations
     if (sdl_dc_dblfreed) {
         free(sdl_dc_dblfreed);
         sdl_dc_dblfreed = NULL;
@@ -453,27 +402,86 @@ void SDL_DREAMCAST_DestroyWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *
         sdl_dc_dblsize = 0;
     }
 
-    if (sdl_dc_memfreed) {
-        free(sdl_dc_memfreed);
-        sdl_dc_memfreed = NULL;
+    // DO NOT free sdl_dc_memfreed or sdl_dc_memtex here,
+    // those are managed by DREAMCAST_DestroyWindowTexture()
+
+    // Reset DMA/DIRECT related state
+    sdl_dc_buf[0] = NULL;
+    sdl_dc_buf[1] = NULL;
+    sdl_dc_buf_index = 0;
+}
+
+
+bool DREAMCAST_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch)
+{
+    const char *double_buffer_hint = SDL_GetHint(SDL_HINT_VIDEO_DOUBLE_BUFFER);
+    int logical_w = SDL_atoi(SDL_GetHint(SDL_HINT_DC_SCREEN_WIDTH_TEXTURED) ?: "640");
+    int logical_h = SDL_atoi(SDL_GetHint(SDL_HINT_DC_SCREEN_HEIGHT_TEXTURED) ?: "480");
+    int w, h;
+    sdl_dc_width = logical_w;
+    sdl_dc_height = logical_h;
+    sdl_dc_wtex = 1 << (32 - __builtin_clz(logical_w - 1));
+    sdl_dc_htex = 1 << (32 - __builtin_clz(logical_h - 1));
+    SDL_GetWindowSizeInPixels(window, &w, &h);
+    *format = SDL_PIXELFORMAT_RGB565;
+    sdl_dc_bpp = SDL_BITSPERPIXEL(*format);
+    size_t tex_size = sdl_dc_wtex * sdl_dc_htex * (sdl_dc_bpp >> 3);
+
+    pvr_init_defaults();
+    pvr_dma_init();
+    sdl_dc_pvr_inited = 1;
+    sdl_dc_textured = 1;
+
+    sdl_dc_memtex = pvr_mem_malloc(tex_size);
+    sdl_dc_u1 = 0.0f;
+    sdl_dc_v1 = 0.0f;
+    sdl_dc_u2 = (float)512 / (float)sdl_dc_wtex;
+    sdl_dc_v2 = (float)256 / (float)sdl_dc_htex;
+
+    if (SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, true)) {
+        sdl_dc_memfreed = calloc(64 + tex_size, 1);
+        sdl_dc_buftex = (unsigned short *)((((uintptr_t)sdl_dc_memfreed + 32) / 32) * 32);
+        *pixels = (void *)sdl_dc_buftex;
+    } else {
         sdl_dc_buftex = NULL;
+        *pixels = (void *)sdl_dc_memtex;
     }
 
-    // Free PVR allocated texture memory for textured mode
+    *pitch = sdl_dc_wtex * (sdl_dc_bpp >> 3);
+    // *pitch = 1280;
+    __sdl_dc_mouse_shift = 640.0f / (float)sdl_dc_width;
+
+    SDL_Log("DREAMCAST_CreateWindowTexture: Logical %dx%d, tex size %dx%d, pitch %d",
+            sdl_dc_width, sdl_dc_height, sdl_dc_wtex, sdl_dc_htex, *pitch);
+    // SDL_SetWindowSize(window, sdl_dc_wtex, sdl_dc_htex);
+
+    return true;
+}
+
+
+bool DREAMCAST_UpdateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects)
+{
+    // SDL_Log("DREAMCAST_UpdateWindowTexture: numrects=%d", numrects);
+    if (numrects == 1) {
+        sdl_dc_blit_textured();
+    }
+    return true;
+}
+
+
+void DREAMCAST_DestroyWindowTexture(SDL_VideoDevice *_this, SDL_Window *window)
+{
+    SDL_Log("DREAMCAST_DestroyWindowTexture: freeing VRAM and buffers");
+    if (sdl_dc_memfreed) {
+        SDL_free(sdl_dc_memfreed);
+        sdl_dc_memfreed = NULL;
+    }
     if (sdl_dc_memtex) {
         pvr_mem_free(sdl_dc_memtex);
         sdl_dc_memtex = NULL;
     }
-
-    // Reset mode-specific flags and states
-    sdl_dc_pvr_inited = 0;
-    sdl_dc_textured = 0;
-    sdl_dc_width = 0;
-    sdl_dc_height = 0;
-    sdl_dc_bpp = 0;
-    sdl_dc_wtex = 0;
-    sdl_dc_htex = 0;
 }
+
 
 #endif /* SDL_VIDEO_DRIVER_DREAMCAST */
 

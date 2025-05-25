@@ -28,7 +28,7 @@
 typedef struct SDL_VideoData {
     Uint32 format;       /* Pixel format (e.g., RGB565, ARGB8888) */
     int w, h;           /* Screen width/height */
-    SDL_Window *window; /* Pointer to active SDL2 window */
+    SDL_Window *window; /* Pointer to active SDL3 window */
     SDL_Surface *framebuffer; // Software framebuffer surface
 } SDL_VideoData;
 

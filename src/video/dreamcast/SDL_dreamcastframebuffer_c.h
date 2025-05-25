@@ -29,6 +29,9 @@
 extern bool SDL_DREAMCAST_CreateWindowFramebuffer(SDL_VideoDevice *device, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch);
 extern bool SDL_DREAMCAST_UpdateWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects);
 extern void SDL_DREAMCAST_DestroyWindowFramebuffer(SDL_VideoDevice *_this, SDL_Window *window);
+extern bool DREAMCAST_CreateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, SDL_PixelFormat *format, void **pixels, int *pitch);
+extern bool DREAMCAST_UpdateWindowTexture(SDL_VideoDevice *_this, SDL_Window *window, const SDL_Rect *rects, int numrects);
+extern void DREAMCAST_DestroyWindowTexture(SDL_VideoDevice *_this, SDL_Window *window);
 
 #endif /* SDL_dreamcastframebuffer_c_h_ */
 

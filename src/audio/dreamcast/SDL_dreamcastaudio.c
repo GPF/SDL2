@@ -159,10 +159,10 @@ int DREAMCASTAUD_OpenDevice(_THIS, const char *devname)
     /* Ensure that the shutdown flag is clear for the new session */
     // SDL_AtomicSet(&_this->shutdown, 0);
     /* Initialize the sound stream system */
-    if (snd_stream_init() != 0) {
-        SDL_free(hidden);
-        return SDL_SetError("Failed to initialize sound stream system");
-    }
+    // if (snd_stream_init() != 0) {
+    //     SDL_free(hidden);
+    //     return SDL_SetError("Failed to initialize sound stream system");
+    // }
 
     /* Choose a compatible audio format */
     for (test_format = SDL_FirstAudioFormat(_this->spec.format);

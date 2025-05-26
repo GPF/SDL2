@@ -83,7 +83,13 @@ bool DREAMCAST_CreateWindow(SDL_VideoDevice *_this, SDL_Window *window, SDL_Prop
             }
         }
     }
-
+#ifdef SDL_VIDEO_OPENGL
+    // For OpenGL, enforce 640x480 hardware resolution
+    disp_mode = __sdl_dc_is_60hz ? DM_640x480 : DM_640x480_PAL_IL;
+    pixel_mode = PM_RGB555; // OpenGL converts to ARGB1555
+    SDL_Log("OpenGL mode: Setting hardware resolution to 640x480");
+    vid_set_mode(disp_mode, pixel_mode);
+#endif
     if (disp_mode < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unsupported display mode for %dx%d", target_w, target_h);
         return false;

@@ -257,10 +257,10 @@ else if (video_mode_hint && SDL_strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO")
     // _this->SetWindowFramebufferVSync = DREAMCAST_SetWindowTextureVSync;
     // _this->GetWindowFramebufferVSync = DREAMCAST_GetWindowTextureVSync;
 }
-    else {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unknown video mode: %s", video_mode_hint);
-        return false;
-    }
+    // else {
+    //     SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Unknown video mode: %s", video_mode_hint);
+    //     return false;
+    // }
 
 #ifdef SDL_VIDEO_OPENGL
     // For OpenGL, enforce 640x480 hardware resolution
@@ -270,6 +270,7 @@ else if (video_mode_hint && SDL_strcmp(video_mode_hint, "SDL_DC_TEXTURED_VIDEO")
     mode.w = 640;
     mode.h = 480;
     SDL_Log("OpenGL mode: Setting hardware resolution to 640x480");
+    vid_set_mode(disp_mode, pixel_mode);
 #else
     // For software modes, use 640x480 for display mode
     mode.w = default_w;

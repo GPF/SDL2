@@ -149,10 +149,10 @@ static bool DREAMCASTAUD_OpenDevice(SDL_AudioDevice *device)
     }
     device->hidden = hidden;
 
-    if (snd_stream_init() != 0) {
-        SDL_free(hidden);
-        return SDL_SetError("Failed to initialize sound stream system");
-    }
+    // if (snd_stream_init() != 0) {
+    //     SDL_free(hidden);
+    //     return SDL_SetError("Failed to initialize sound stream system");
+    // }
 
     // Pick supported audio format using SDL_ClosestAudioFormats
     closefmts = SDL_ClosestAudioFormats(device->spec.format);
